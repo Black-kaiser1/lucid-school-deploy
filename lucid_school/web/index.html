@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1B4332">
+  <title>Lucid School</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, 'DM Sans', sans-serif;
+      background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .splash {
+      text-align: center;
+      color: white;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      background: #D4A017;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      margin: 0 auto 16px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    p {
+      font-size: 14px;
+      opacity: 0.75;
+      margin-bottom: 24px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #D4A017;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-box {
+      display: none;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 20px;
+      font-size: 13px;
+      max-width: 280px;
+    }
+  </style>
+</head>
+<body>
+  <div class="splash">
+    <div class="logo">🏫</div>
+    <h1>Lucid School</h1>
+    <p>Loading your school management system…</p>
+    <div class="spinner" id="spinner"></div>
+    <div class="error-box" id="errorBox">
+      <strong>⚠️ Cannot connect</strong><br>
+      Make sure you have internet connection.
+      <br><br>
+      <button onclick="location.reload()" style="background:#D4A017;color:#1B4332;border:none;padding:8px 16px;border-radius:8px;font-weight:700;cursor:pointer">
+        Retry
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Replace this URL with your actual Render/deployed URL
+    var APP_URL = 'https://lucid-school.onrender.com/login';
+
+    // Try to load the app
+    function loadApp() {
+      fetch(APP_URL, { method: 'HEAD', mode: 'no-cors' })
+        .then(function() {
+          window.location.href = APP_URL;
+        })
+        .catch(function() {
+          document.getElementById('spinner').style.display = 'none';
+          document.getElementById('errorBox').style.display = 'block';
+        });
+    }
+
+    // Give it 1 second then redirect
+    setTimeout(function() {
+      window.location.href = APP_URL;
+    }, 1200);
+  </script>
+</body>
+</html>

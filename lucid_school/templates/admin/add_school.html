@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Add School{% endblock %}
+{% block page_title %}➕ Add New School{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">
+  <div class="card" style="grid-column:1/-1">
+    <div class="card-title">🏫 School Details</div>
+    <form method="post" enctype="multipart/form-data">
+      <div class="grid-2">
+        <div class="fg"><label>School Name *</label><input name="name" required placeholder="e.g. Lucid International School"></div>
+        <div class="fg"><label>Short Name *</label><input name="short_name" required placeholder="e.g. LIS (unique ID)"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Address</label><input name="address" placeholder="Full school address"></div>
+        <div class="fg"><label>Phone</label><input name="phone" placeholder="0244123456"></div>
+        <div class="fg"><label>Email</label><input name="email" type="email" placeholder="info@school.edu.gh"></div>
+        <div class="fg" style="grid-column:1/-1"><label>School Motto</label><input name="motto" placeholder="Excellence in Education" value="Excellence in Education"></div>
+        <div class="fg"><label>Primary Color</label><input name="primary_color" type="color" value="#1B4332"></div>
+        <div class="fg"><label>Secondary / Gold Color</label><input name="secondary_color" type="color" value="#D4A017"></div>
+        <div class="fg"><label>Subscription Plan</label>
+          <select name="plan">
+            <option value="basic">Basic (up to 200 students)</option>
+            <option value="standard">Standard (up to 500 students)</option>
+            <option value="premium" selected>Premium (unlimited)</option>
+          </select>
+        </div>
+        <div class="fg"><label>Max Students</label><input name="max_students" type="number" value="500"></div>
+        <div class="fg"><label>Current Term</label>
+          <select name="current_term">
+            <option value="1" selected>Term 1</option>
+            <option value="2">Term 2</option>
+            <option value="3">Term 3</option>
+          </select>
+        </div>
+        <div class="fg"><label>Academic Year</label><input name="current_year" value="2025/2026"></div>
+      </div>
+      <hr style="margin:16px 0;border-color:#e2e8f0">
+      <div class="card-title">👤 School Admin Account</div>
+      <div class="grid-2">
+        <div class="fg"><label>Admin Full Name *</label><input name="admin_name" required placeholder="e.g. Mr. Kwame Mensah"></div>
+        <div class="fg"><label>Admin Email</label><input name="admin_email" type="email" placeholder="admin@school.edu.gh"></div>
+        <div class="fg"><label>Username *</label><input name="admin_username" required placeholder="e.g. schooladmin"></div>
+        <div class="fg"><label>Password *</label><input name="admin_password" required placeholder="Set a strong password" value="school123"></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px">
+        <button type="submit" class="btn btn-p">🏫 Create School</button>
+        <a href="{{ url_for('platform_dashboard') }}" class="btn btn-o">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

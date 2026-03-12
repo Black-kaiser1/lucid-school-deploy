@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% block title %}Subjects{% endblock %}
+{% block page_title %}📚 Subjects{% endblock %}
+
+{% block extra_css %}
+<style>
+.subj-card {
+  background:#fff;
+  border:1.5px solid #e8f5e9;
+  border-radius:10px;
+  padding:12px 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  transition:.15s;
+  margin-bottom:6px;
+}
+.subj-card:hover { border-color:var(--mint); background:#f8fff9; }
+.subj-card.editing { background:#FFFDE7; border-color:var(--s); }
+
+.subj-name { font-weight:600; font-size:13.5px; flex:1; }
+.ei { padding:6px 10px; border:1.5px solid #d1e8d8; border-radius:7px;
+      font-size:13px; font-family:'DM Sans',sans-serif; background:#fff; }
+.ei:focus { border-color:var(--p); outline:none; }
+.ei-wide { flex:2; min-width:0; }
+.ei-code { width:80px; }
+.ei-type { min-width:110px; }
+
+.view-mode { display:flex; align-items:center; gap:10px; flex:1; }
+.edit-mode  { display:none; align-items:center; gap:8px; flex:1; flex-wrap:wrap; }
+.subj-card.editing .view-mode { display:none; }
+.subj-card.editing .edit-mode  { display:flex; }
+.subj-card.editing .edit-btn   { display:none; }
+.subj-card.editing .save-btn, .subj-card.editing .cancel-btn { display:inline-block; }
+.save-btn, .cancel-btn { display:none; }
+
+.ia { border:none; padding:5px 11px; border-radius:7px; cursor:pointer;
+      font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; transition:.12s; }
+.ia.edit-btn  { background:var(--light); color:var(--p); border:1.5px solid var(--mint); }
+.ia.edit-btn:hover { background:var(--mint); }
+.ia.save-btn  { background:var(--p); color:#fff; }
+.ia.del-btn   { background:#fff0f0; color:#B71C1C; border:1.5px solid #FFCDD2; }
+.ia.del-btn:hover { background:#FFCDD2; }
+.ia.cancel-btn{ background:#f4f4f4; color:var(--muted); }
+
+.section-label {
+  font-size:10.5px; font-weight:700; text-transform:uppercase;
+  letter-spacing:1.2px; padding:14px 2px 6px; display:flex;
+  align-items:center; gap:8px;
+}
+.add-row {
+  display:flex; gap:8px; flex-wrap:wrap; padding:12px 14px;
+  background:var(--light); border-radius:10px;
+  border:1.5px dashed var(--mint); margin-top:12px;
+  align-items:center;
+}
+.add-row input, .add-row select {
+  padding:7px 10px; border:1.5px solid #d1e8d8; border-radius:7px;
+  font-size:13px; font-family:'DM Sans',sans-serif;
+}
+
+.st { position:fixed; bottom:22px; right:22px; padding:11px 18px; border-radius:9px;
+      font-size:13px; font-weight:600; z-index:999; display:none; max-width:360px;
+      box-shadow:0 6px 20px rgba(0,0,0,.15); }
+.st.ok  { background:#DCEDC8; color:#1B5E20; border-left:4px solid #2D6A4F; }
+.st.err { background:#FFCDD2; color:#B71C1C; border-left:4px solid #B71C1C; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fbar">
+  <div style="display:flex;gap:8px;align-items:center">
+    <span style="font-size:13px;color:var(--muted)">
+      <strong style="color:var(--p)">{{ subjects|length }}</strong> subjects &nbsp;·&nbsp;
+      <strong style="color:#1B5E20">{{ subjects|selectattr('is_core','equalto',1)|list|length }}</strong> Core &nbsp;·&nbsp;
+      <strong style="color:#1565C0">{{ subjects|selectattr('is_core','equalto',0)|list|length }}</strong> Elective
+    </span>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+
+  <!-- ── Core Subjects ─────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title" style="display:flex;align-items:center;gap:8px">
+      📗 Core Subjects
+      <span class="badge bg" style="font-size:10px">{{ subjects|selectattr('is_core','equalto',1)|list|length }}</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400">Required for all students</span>
+    </div>
+
+    <div id="core-list">
+    {% set core = subjects|selectattr('is_core','equalto',1)|list %}
+    {% for subj in core %}
+    <div class="subj-card" id="subj-{{ subj.id }}">
+      <div class="view-mode">
+        <span class="subj-name">{{ subj.name }}</span>
+        <span class="badge bk" style="font-size:10.5px">{{ subj.code }}</span>
+        <span class="badge bg" style="font-size:10.5px">Core</span>
+      </div>
+      <div class="edit-mode">
+        <input class="ei ei-wide" id="sn-{{ subj.id }}" value="{{ subj.name }}" placeholder="Subject name">
+        <input class="ei ei-code" id="sc-{{ subj.id }}" value="{{ subj.code }}" placeholder="Code">
+        <select class="ei ei-type" id="st-{{ subj.id }}">
+          <option value="1" selected>📗 Core</option>
+          <option value="0">📘 Elective</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="ia edit-btn"   onclick="editSubj({{ subj.id }})">✏️ Edit</button>
+        <button class="ia save-btn"   onclick="saveSubj({{ subj.id }})">💾 Save</button>
+        <button class="ia cancel-btn" onclick="cancelSubj({{ subj.id }})">✕</button>
+        <button class="ia del-btn"    onclick="delSubj({{ subj.id }},'{{ subj.name|replace("'","\\'")|e }}')">🗑️</button>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px" id="core-empty">
+      No core subjects yet. Add one below.
+    </div>
+    {% endfor %}
+    </div>
+
+    <!-- Add core subject -->
+    <form class="add-row" method="post" action="{{ url_for('add_subject') }}">
+      <input name="name" placeholder="Subject name *" style="flex:2;min-width:120px" required>
+      <input name="code" placeholder="Code" style="width:72px" required>
+      <input type="hidden" name="is_core" value="1">
+      <button type="submit" class="btn btn-p btn-sm">➕ Add Core</button>
+    </form>
+  </div>
+
+  <!-- ── Elective Subjects ─────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title" style="display:flex;align-items:center;gap:8px">
+      📘 Elective Subjects
+      <span class="badge bo" style="font-size:10px">{{ subjects|selectattr('is_core','equalto',0)|list|length }}</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400">Optional / chosen subjects</span>
+    </div>
+
+    <div id="elective-list">
+    {% set elective = subjects|selectattr('is_core','equalto',0)|list %}
+    {% for subj in elective %}
+    <div class="subj-card" id="subj-{{ subj.id }}">
+      <div class="view-mode">
+        <span class="subj-name">{{ subj.name }}</span>
+        <span class="badge bk" style="font-size:10.5px">{{ subj.code }}</span>
+        <span class="badge bo" style="font-size:10.5px">Elective</span>
+      </div>
+      <div class="edit-mode">
+        <input class="ei ei-wide" id="sn-{{ subj.id }}" value="{{ subj.name }}" placeholder="Subject name">
+        <input class="ei ei-code" id="sc-{{ subj.id }}" value="{{ subj.code }}" placeholder="Code">
+        <select class="ei ei-type" id="st-{{ subj.id }}">
+          <option value="1">📗 Core</option>
+          <option value="0" selected>📘 Elective</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="ia edit-btn"   onclick="editSubj({{ subj.id }})">✏️ Edit</button>
+        <button class="ia save-btn"   onclick="saveSubj({{ subj.id }})">💾 Save</button>
+        <button class="ia cancel-btn" onclick="cancelSubj({{ subj.id }})">✕</button>
+        <button class="ia del-btn"    onclick="delSubj({{ subj.id }},'{{ subj.name|replace("'","\\'")|e }}')">🗑️</button>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px" id="elective-empty">
+      No elective subjects yet. Add one below.
+    </div>
+    {% endfor %}
+    </div>
+
+    <!-- Add elective subject -->
+    <form class="add-row" method="post" action="{{ url_for('add_subject') }}">
+      <input name="name" placeholder="Subject name *" style="flex:2;min-width:120px" required>
+      <input name="code" placeholder="Code" style="width:72px" required>
+      <input type="hidden" name="is_core" value="0">
+      <button type="submit" class="btn btn-p btn-sm" style="background:#1565C0">➕ Add Elective</button>
+    </form>
+  </div>
+
+</div>
+
+<div class="st" id="toast"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var _timer;
+function toast(msg,type){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='st '+(type||'ok'); t.style.display='block';
+  clearTimeout(_timer); _timer=setTimeout(()=>t.style.display='none',3500);
+}
+
+function editSubj(id){
+  document.querySelectorAll('.subj-card.editing').forEach(c=>{
+    cancelSubj(parseInt(c.id.split('-')[1]));
+  });
+  document.getElementById('subj-'+id).classList.add('editing');
+  document.getElementById('sn-'+id).focus();
+}
+function cancelSubj(id){
+  document.getElementById('subj-'+id).classList.remove('editing');
+}
+
+function saveSubj(id){
+  var name = document.getElementById('sn-'+id).value.trim();
+  var code = document.getElementById('sc-'+id).value.trim().toUpperCase();
+  var core = document.getElementById('st-'+id).value;
+  if(!name){toast('Subject name is required','err');return;}
+  if(!code){toast('Subject code is required','err');return;}
+  var fd = new FormData();
+  fd.append('name',name); fd.append('code',code); fd.append('is_core',core);
+  fetch('/school/settings/subject/'+id+'/edit',{method:'POST',body:fd})
+  .then(r=>r.json()).then(d=>{
+    if(d.status==='ok'){
+      var card = document.getElementById('subj-'+id);
+      var vm   = card.querySelector('.view-mode');
+      var badges = vm.querySelectorAll('.badge');
+      vm.querySelector('.subj-name').textContent = name;
+      badges[0].textContent = code;
+      var isCore = core==='1';
+      badges[1].textContent = isCore ? 'Core' : 'Elective';
+      badges[1].className   = 'badge '+(isCore?'bg':'bo');
+      badges[1].style.fontSize='10.5px';
+      cancelSubj(id);
+      toast('✅ '+name+' updated');
+    } else { toast('❌ '+d.message,'err'); }
+  }).catch(e=>toast('❌ '+e.message,'err'));
+}
+
+function delSubj(id,name){
+  if(!confirm('Delete subject "'+name+'"?\n\nThis cannot be undone.\n(Will be blocked if scores already exist.)')) return;
+  fetch('/school/settings/subject/'+id+'/delete',{method:'POST'})
+  .then(r=>r.json()).then(d=>{
+    if(d.status==='ok'){
+      var card = document.getElementById('subj-'+id);
+      card.style.transition='opacity .3s,transform .3s';
+      card.style.opacity='0'; card.style.transform='translateX(20px)';
+      setTimeout(()=>card.remove(), 320);
+      toast('🗑️ "'+name+'" removed');
+    } else { toast('❌ '+d.message,'err'); }
+  }).catch(e=>toast('❌ '+e.message,'err'));
+}
+
+// Auto-uppercase code fields
+document.addEventListener('input',e=>{
+  if(e.target.classList.contains('ei-code')){
+    var p=e.target.selectionStart;
+    e.target.value=e.target.value.toUpperCase();
+    e.target.setSelectionRange(p,p);
+  }
+});
+</script>
+{% endblock %}

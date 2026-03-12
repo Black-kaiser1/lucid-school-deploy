@@ -1,0 +1,418 @@
+{% extends 'base.html' %}
+{% block title %}Subscription{% endblock %}
+{% block page_title %}💳 Subscription & Billing{% endblock %}
+
+{% block extra_css %}
+<style>
+.sub-status-card{border-radius:14px;padding:22px 26px;margin-bottom:16px;display:flex;align-items:center;gap:18px}
+.sub-active{background:linear-gradient(135deg,#1B4332 0%,#2D6A4F 100%);color:#fff}
+.sub-warning{background:linear-gradient(135deg,#E65100 0%,#BF360C 100%);color:#fff}
+.sub-expired{background:linear-gradient(135deg,#B71C1C 0%,#7F0000 100%);color:#fff}
+.sub-icon{font-size:42px;flex-shrink:0}
+.sub-label{font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.sub-value{font-size:22px;font-weight:700;line-height:1.2}
+
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.plan-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:.2s;position:relative}
+.plan-card.active-plan{border-color:var(--p);background:#f0fdf4}
+.plan-card:hover{border-color:var(--p);transform:translateY(-2px)}
+.plan-name{font-size:13px;font-weight:700;color:var(--p);margin-bottom:6px}
+.plan-price{font-size:24px;font-weight:800;color:var(--dark);line-height:1}
+.plan-period{font-size:11px;color:var(--muted);margin-bottom:8px}
+.plan-badge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--s);color:var(--p);font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;white-space:nowrap}
+.plan-feature{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+.pay-method{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.pay-btn{border:2px solid #e2e8f0;border-radius:10px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;background:#fff;transition:.15s;min-width:140px}
+.pay-btn.selected{border-color:var(--p);background:#f0fdf4;color:var(--p)}
+.pay-btn:hover{border-color:var(--p)}
+.pay-icon{font-size:22px}
+.pay-detail-box{background:var(--light);border:1.5px solid var(--mint);border-radius:10px;padding:14px 16px;margin-bottom:14px;font-size:13px}
+.pay-detail-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+.pay-detail-row:last-child{border-bottom:none;font-weight:700}
+.copy-btn{background:none;border:1px solid var(--mint);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--p);cursor:pointer}
+.copy-btn:hover{background:var(--p);color:#fff}
+
+.hist-row{display:grid;grid-template-columns:120px 80px 80px 1fr 90px 90px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #f0f4f2;font-size:12px}
+.hist-row:last-child{border-bottom:none}
+.hist-head{font-size:10.5px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:.5px}
+
+.period-toggle{display:flex;background:#f0f4f2;border-radius:8px;padding:3px;margin-bottom:14px;width:fit-content}
+.period-opt{padding:7px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;color:var(--muted)}
+.period-opt.on{background:#fff;color:var(--p);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Subscription status banner -->
+{% set days = days_left %}
+{% if is_active and days > 30 %}
+<div class="sub-status-card sub-active">
+  <div class="sub-icon">✅</div>
+  <div style="flex:1">
+    <div class="sub-label">Subscription Status</div>
+    <div class="sub-value">Active — {{ school.subscription_plan|title }} Plan</div>
+    {% if days < 9000 %}
+    <div style="margin-top:4px;font-size:13px;opacity:.85">
+      Expires {{ school.subscription_expires[:10] }} &nbsp;·&nbsp; {{ days }} days remaining
+    </div>
+    {% else %}
+    <div style="margin-top:4px;font-size:13px;opacity:.85">No expiry date set (managed manually)</div>
+    {% endif %}
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:10px;opacity:.7;margin-bottom:4px">Renew before expiry</div>
+    <a href="#pay-now" class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4)">
+      💳 Pay Now
+    </a>
+  </div>
+</div>
+{% elif is_active and days <= 30 %}
+<div class="sub-status-card sub-warning">
+  <div class="sub-icon">⚠️</div>
+  <div style="flex:1">
+    <div class="sub-label">Expiring Soon</div>
+    <div class="sub-value">{{ days }} days left — {{ school.subscription_plan|title }} Plan</div>
+    <div style="margin-top:4px;font-size:13px;opacity:.9">
+      Expires {{ school.subscription_expires[:10] }}. Renew now to avoid interruption.
+    </div>
+  </div>
+  <a href="#pay-now" class="btn btn-sm" style="background:#fff;color:#E65100;font-weight:700;flex-shrink:0">
+    🔄 Renew Now
+  </a>
+</div>
+{% else %}
+<div class="sub-status-card sub-expired">
+  <div class="sub-icon">🔒</div>
+  <div style="flex:1">
+    <div class="sub-label">Subscription Expired</div>
+    <div class="sub-value">Access Restricted — {{ school.subscription_plan|title }} Plan</div>
+    <div style="margin-top:4px;font-size:13px;opacity:.9">
+      {% if school.subscription_expires %}Expired {{ school.subscription_expires[:10] }}.{% endif %}
+      Pay below to restore access immediately.
+    </div>
+  </div>
+  <a href="#pay-now" class="btn btn-sm" style="background:#fff;color:#B71C1C;font-weight:700;flex-shrink:0">
+    💳 Pay to Restore
+  </a>
+</div>
+{% endif %}
+
+<!-- Pending payment notice -->
+{% if has_pending %}
+<div style="background:#E3F2FD;border:1.5px solid #1565C0;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#0D47A1;display:flex;align-items:center;gap:10px">
+  <span style="font-size:20px">⏳</span>
+  <div>
+    <strong>Payment under review.</strong> Our team will verify your payment and activate your subscription within 24 hours.
+    For urgent assistance, WhatsApp <strong>{{ cfg.support_whatsapp }}</strong>.
+  </div>
+</div>
+{% endif %}
+
+<!-- Access code shortcut -->
+<div style="background:#F3E5F5;border:1.5px solid #CE93D8;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#4A148C;display:flex;align-items:center;gap:10px">
+  <span style="font-size:20px">🔑</span>
+  <div style="flex:1">
+    Already have an <strong>access code</strong>? Enter it now to activate instantly.
+  </div>
+  <a href="{{ url_for('activate_code') }}" class="btn btn-sm" style="background:#9C27B0;color:#fff;flex-shrink:0">
+    Enter Code
+  </a>
+</div>
+
+<!-- Pricing Plans -->
+<div class="card" id="pay-now">
+  <div class="card-title">📦 Choose Your Plan</div>
+
+  <!-- Period toggle -->
+  <div class="period-toggle" id="periodToggle">
+    <div class="period-opt on" onclick="setPeriod('termly')">Per Term</div>
+    <div class="period-opt" onclick="setPeriod('annual')">Full Year <span style="color:#E65100;font-size:10px">Save ~15%</span></div>
+  </div>
+
+  <div class="plan-grid">
+    <!-- Basic -->
+    <div class="plan-card {% if school.subscription_plan=='basic' %}active-plan{% endif %}" onclick="selectPlan('basic')">
+      {% if school.subscription_plan=='basic' %}<div class="plan-badge">Your Plan</div>{% endif %}
+      <div class="plan-name">BASIC</div>
+      <div class="plan-price" id="price-basic">GH₵{{ "%.0f"|format(pricing.termly) }}</div>
+      <div class="plan-period" id="period-basic">per term</div>
+      <div class="plan-feature">Up to {{ cfg.limit_basic_students }} students</div>
+      <div class="plan-feature">All core features</div>
+      <div class="plan-feature">Report cards & PDF</div>
+    </div>
+    <!-- Standard -->
+    <div class="plan-card {% if school.subscription_plan=='standard' %}active-plan{% endif %}" onclick="selectPlan('standard')">
+      {% if school.subscription_plan=='standard' %}<div class="plan-badge">Your Plan</div>{% endif %}
+      <div class="plan-badge" style="background:var(--p);color:#fff">Most Popular</div>
+      <div class="plan-name">STANDARD</div>
+      <div class="plan-price" id="price-standard">GH₵{{ "%.0f"|format(pricing.termly * 1.67 if school.subscription_plan=='basic' else pricing.termly) }}</div>
+      <div class="plan-period" id="period-standard">per term</div>
+      <div class="plan-feature">Up to {{ cfg.limit_standard_students }} students</div>
+      <div class="plan-feature">SMS notifications</div>
+      <div class="plan-feature">Priority support</div>
+    </div>
+    <!-- Premium -->
+    <div class="plan-card {% if school.subscription_plan=='premium' %}active-plan{% endif %}" onclick="selectPlan('premium')">
+      {% if school.subscription_plan=='premium' %}<div class="plan-badge">Your Plan</div>{% endif %}
+      <div class="plan-name">PREMIUM</div>
+      <div class="plan-price" id="price-premium">GH₵{{ "%.0f"|format(pricing.termly * 2.67 if school.subscription_plan=='basic' else pricing.termly) }}</div>
+      <div class="plan-period" id="period-premium">per term</div>
+      <div class="plan-feature">Up to {{ cfg.limit_premium_students }} students</div>
+      <div class="plan-feature">Unlimited SMS & email</div>
+      <div class="plan-feature">Dedicated support</div>
+    </div>
+  </div>
+
+  <!-- Payment method selection -->
+  <div class="card-title" style="margin-bottom:10px">💳 Payment Method</div>
+  <div class="pay-method">
+    {% if cfg.momo_mtn_number %}
+    <div class="pay-btn selected" id="btn-momo_mtn" onclick="selectMethod('momo_mtn')">
+      <span class="pay-icon">📱</span>
+      <div><div style="font-size:11px;color:var(--muted)">MTN Mobile Money</div><div>{{ cfg.momo_mtn_number }}</div></div>
+    </div>
+    {% endif %}
+    {% if cfg.momo_vodafone_number %}
+    <div class="pay-btn" id="btn-momo_vodafone" onclick="selectMethod('momo_vodafone')">
+      <span class="pay-icon">📱</span>
+      <div><div style="font-size:11px;color:var(--muted)">Vodafone Cash</div><div>{{ cfg.momo_vodafone_number }}</div></div>
+    </div>
+    {% endif %}
+    {% if cfg.momo_at_number %}
+    <div class="pay-btn" id="btn-momo_at" onclick="selectMethod('momo_at')">
+      <span class="pay-icon">📱</span>
+      <div><div style="font-size:11px;color:var(--muted)">AirtelTigo Money</div><div>{{ cfg.momo_at_number }}</div></div>
+    </div>
+    {% endif %}
+    {% if cfg.bank_account_number %}
+    <div class="pay-btn" id="btn-bank" onclick="selectMethod('bank')">
+      <span class="pay-icon">🏦</span>
+      <div><div style="font-size:11px;color:var(--muted)">Bank Transfer</div><div>{{ cfg.bank_name }}</div></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Payment details box -->
+  <div class="pay-detail-box" id="payDetailBox">
+    <div style="font-weight:700;color:var(--p);margin-bottom:8px" id="payDetailTitle">📱 MTN Mobile Money</div>
+    <div class="pay-detail-row"><span>Name</span><span id="pd-name">{{ cfg.momo_mtn_name }}</span></div>
+    <div class="pay-detail-row">
+      <span>Number</span>
+      <span>
+        <span id="pd-number">{{ cfg.momo_mtn_number }}</span>
+        <button class="copy-btn" onclick="copyText('pd-number')">Copy</button>
+      </span>
+    </div>
+    <div class="pay-detail-row" id="pd-bank-row" style="display:none"><span>Bank</span><span id="pd-bank"></span></div>
+    <div class="pay-detail-row" id="pd-branch-row" style="display:none"><span>Branch</span><span id="pd-branch"></span></div>
+    <div class="pay-detail-row">
+      <span>Amount Due</span>
+      <span style="color:var(--p);font-size:15px" id="pd-amount">GH₵{{ "%.0f"|format(pricing.termly) }}</span>
+    </div>
+  </div>
+
+  <div style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:#5D4037">
+    <strong>How to pay:</strong> Send the exact amount to the number above, then fill in the form below with your reference number.
+    Your subscription will be activated within <strong>24 hours</strong> of verification.
+  </div>
+
+  <!-- Submit form -->
+  <div class="card-title" style="margin-bottom:12px">📋 Submit Payment Confirmation</div>
+  {% if not has_pending %}
+  <form method="post" action="{{ url_for('submit_payment') }}">
+    <input type="hidden" name="payment_method" id="hid_method" value="momo_mtn">
+    <input type="hidden" name="period_type" id="hid_period" value="termly">
+    <input type="hidden" name="amount" id="hid_amount" value="{{ pricing.termly|round|int }}">
+
+    <div class="grid-2">
+      <div class="fg">
+        <label>Transaction Reference / Receipt No. *</label>
+        <input name="reference" required placeholder="e.g. 1234567890 or QRN-XXXX" id="refInput">
+        <span style="font-size:11px;color:var(--muted)">The transaction ID from your MoMo SMS or bank receipt</span>
+      </div>
+      <div class="fg">
+        <label>Amount Paid (GH₵) *</label>
+        <input name="amount" id="amtInput" type="number" step="0.01" min="1"
+               value="{{ pricing.termly|round|int }}" required>
+      </div>
+      <div class="fg">
+        <label>Academic Year *</label>
+        <select name="academic_year">
+          {% for yr in years %}
+          <option value="{{ yr }}" {% if yr == school.current_year %}selected{% endif %}>{{ yr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg" id="term-fg">
+        <label>Term (for termly payment)</label>
+        <select name="term" id="termSelect">
+          <option value="1">Term 1</option>
+          <option value="2">Term 2</option>
+          <option value="3">Term 3</option>
+        </select>
+      </div>
+      <div class="fg" style="grid-column:1/-1">
+        <label>Notes (optional)</label>
+        <input name="notes" placeholder="e.g. Paid for Basic 9A class group, or any other note">
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-p" style="min-width:200px">
+      📤 Submit Payment for Review
+    </button>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px">
+      Need help? WhatsApp us: <strong>{{ cfg.support_whatsapp }}</strong>
+      · Email: {{ cfg.support_email }}
+    </div>
+  </form>
+  {% else %}
+  <div style="background:#F3E5F5;border:1.5px solid #9C27B0;border-radius:8px;padding:12px 16px;font-size:13px;color:#4A148C">
+    ⏳ <strong>Your payment is being reviewed.</strong> No new submission needed. You'll be notified once approved.
+  </div>
+  {% endif %}
+</div>
+
+<!-- Payment History -->
+{% if payments %}
+<div class="card">
+  <div class="card-title">📋 Payment History</div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th><th>Plan</th><th>Period</th><th>Reference</th>
+        <th>Amount</th><th>Method</th><th>Status</th><th>Extends To</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in payments %}
+    <tr>
+      <td style="font-size:11px;color:var(--muted)">{{ p.submitted_at[:16] }}</td>
+      <td><span class="badge bk">{{ p.plan|title }}</span></td>
+      <td>
+        {% if p.period_type=='annual' %}
+        <span class="badge bg">Full Year</span>
+        {% else %}
+        <span class="badge bb">Term {{ p.term }}</span>
+        {% endif %}
+      </td>
+      <td style="font-family:monospace;font-size:12px">{{ p.reference }}</td>
+      <td><strong>GH₵{{ "%.2f"|format(p.amount_paid) }}</strong></td>
+      <td style="font-size:11.5px">
+        {% if 'mtn' in p.payment_method %}📱 MTN MoMo
+        {% elif 'vodafone' in p.payment_method %}📱 Vodafone
+        {% elif 'at' in p.payment_method %}📱 AirtelTigo
+        {% else %}🏦 Bank
+        {% endif %}
+      </td>
+      <td>
+        {% if p.status == 'approved' %}
+        <span class="badge bg">✅ Approved</span>
+        {% elif p.status == 'rejected' %}
+        <span class="badge br" title="{{ p.rejection_reason }}">❌ Rejected</span>
+        {% else %}
+        <span class="badge bo">⏳ Pending</span>
+        {% endif %}
+      </td>
+      <td style="font-size:11.5px;color:var(--muted)">
+        {{ p.extends_to[:10] if p.extends_to else '—' }}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var PRICES = {
+  basic:    { termly: {{ pricing.termly }},    annual: {{ pricing.annual }} },
+  standard: { termly: {{ pricing.termly * 1.67 | round | int }}, annual: {{ pricing.annual * 1.625 | round | int }} },
+  premium:  { termly: {{ pricing.termly * 2.67 | round | int }}, annual: {{ pricing.annual * 2.625 | round | int }} },
+};
+{% set cfg_json = {
+  'momo_mtn':      {'name': cfg.momo_mtn_name,      'number': cfg.momo_mtn_number,      'type':'momo'},
+  'momo_vodafone': {'name': cfg.momo_vodafone_name,  'number': cfg.momo_vodafone_number,  'type':'momo'},
+  'momo_at':       {'name': cfg.momo_at_name,        'number': cfg.momo_at_number,        'type':'momo'},
+  'bank':          {'name': cfg.bank_account_name,   'number': cfg.bank_account_number,
+                    'bank': cfg.bank_name, 'branch': cfg.bank_branch, 'type':'bank'}
+} %}
+var METHODS = {{ cfg_json | tojson }};
+
+var curPlan   = '{{ school.subscription_plan }}';
+var curPeriod = 'termly';
+var curMethod = 'momo_mtn';
+
+function setPeriod(p){
+  curPeriod = p;
+  document.getElementById('hid_period').value = p;
+  document.querySelectorAll('.period-opt').forEach(function(el,i){
+    el.classList.toggle('on', (i===0 && p==='termly')||(i===1 && p==='annual'));
+  });
+  document.getElementById('term-fg').style.display = p==='termly' ? '' : 'none';
+  updatePrices();
+}
+function selectPlan(plan){
+  curPlan = plan;
+  document.querySelectorAll('.plan-card').forEach(function(c){ c.classList.remove('active-plan'); });
+  event.currentTarget.classList.add('active-plan');
+  updatePrices();
+}
+function updatePrices(){
+  ['basic','standard','premium'].forEach(function(p){
+    var price = PRICES[p] ? PRICES[p][curPeriod] : 0;
+    var el = document.getElementById('price-'+p);
+    var lbl = document.getElementById('period-'+p);
+    if(el) el.textContent = 'GH₵' + Math.round(price);
+    if(lbl) lbl.textContent = curPeriod==='annual' ? 'per year' : 'per term';
+  });
+  var due = PRICES[curPlan] ? PRICES[curPlan][curPeriod] : 0;
+  document.getElementById('pd-amount').textContent = 'GH₵' + Math.round(due);
+  var amtInput = document.getElementById('amtInput');
+  if(amtInput) amtInput.value = Math.round(due);
+  document.getElementById('hid_amount').value = Math.round(due);
+}
+function selectMethod(m){
+  curMethod = m;
+  document.getElementById('hid_method').value = m;
+  document.querySelectorAll('.pay-btn').forEach(function(b){ b.classList.remove('selected'); });
+  var btn = document.getElementById('btn-'+m);
+  if(btn) btn.classList.add('selected');
+  var info = METHODS[m] || {};
+  var isMomo = info.type !== 'bank';
+  document.getElementById('payDetailTitle').textContent = isMomo ? '📱 Mobile Money' : '🏦 Bank Transfer';
+  document.getElementById('pd-name').textContent   = info.name   || '—';
+  document.getElementById('pd-number').textContent = info.number || '—';
+  document.getElementById('pd-bank-row').style.display   = isMomo ? 'none' : '';
+  document.getElementById('pd-branch-row').style.display = isMomo ? 'none' : '';
+  if(!isMomo){
+    document.getElementById('pd-bank').textContent   = info.bank   || '—';
+    document.getElementById('pd-branch').textContent = info.branch || '—';
+  }
+}
+function copyText(id){
+  var txt = document.getElementById(id).textContent.trim();
+  navigator.clipboard.writeText(txt).then(function(){
+    var btn = event.target; btn.textContent='Copied!';
+    setTimeout(function(){ btn.textContent='Copy'; }, 1500);
+  }).catch(function(){
+    var ta=document.createElement('textarea'); ta.value=txt;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+// Scroll to pay now if expired
+{% if not is_active %}
+window.addEventListener('load', function(){
+  var el=document.getElementById('pay-now');
+  if(el) setTimeout(function(){ el.scrollIntoView({behavior:'smooth'}); },400);
+});
+{% endif %}
+</script>
+{% endblock %}

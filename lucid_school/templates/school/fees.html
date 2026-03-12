@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Fees{% endblock %}
+{% block page_title %}💰 Fee Management{% endblock %}
+{% block extra_css %}
+<style>
+.fee-bar-wrap{background:#e2e8f0;border-radius:4px;height:7px;overflow:hidden;margin-top:3px;min-width:80px}
+.fee-bar{height:100%;border-radius:4px;background:#22C55E}
+.fee-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.fee-modal.open{display:flex}
+.fee-modal-box{background:#fff;border-radius:12px;padding:24px;width:480px;max-width:95vw}
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Summary cards -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">
+  <div class="stat"><div class="bar"></div>
+    <div class="num" style="font-size:20px">GH₵{{ "%.2f"|format(totals.total_due if totals else 0) }}</div>
+    <div class="lbl">💰 Total Expected</div>
+  </div>
+  <div class="stat"><div class="bar" style="background:#22C55E"></div>
+    <div class="num" style="font-size:20px">GH₵{{ "%.2f"|format(totals.total_paid if totals else 0) }}</div>
+    <div class="lbl">✅ Total Collected</div>
+  </div>
+  <div class="stat"><div class="bar" style="background:var(--red)"></div>
+    {% set balance = (totals.total_due or 0) - (totals.total_paid or 0) %}
+    <div class="num" style="font-size:20px;color:{% if balance>0 %}var(--red){% else %}#22C55E{% endif %}">GH₵{{ "%.2f"|format(balance) }}</div>
+    <div class="lbl">⚠️ Outstanding</div>
+  </div>
+  <div class="stat"><div class="bar" style="background:var(--s)"></div>
+    {% if totals and totals.total_due > 0 %}
+    <div class="num" style="font-size:20px">{{ ((totals.total_paid/totals.total_due)*100)|round|int }}%</div>
+    {% else %}<div class="num" style="font-size:20px">0%</div>{% endif %}
+    <div class="lbl">📊 Collection Rate</div>
+  </div>
+</div>
+
+<!-- Class breakdown + top debtors -->
+{% if class_breakdown or debtors %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+  <!-- Per-class collection -->
+  <div class="card">
+    <div class="card-title">🏫 Collection by Class — Term {{ term }}, {{ academic_year }}</div>
+    {% if class_breakdown %}
+    {% set max_due = class_breakdown|map(attribute='due')|max %}
+    {% for cls in class_breakdown %}
+    {% if cls.total_students > 0 %}
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="font-weight:600">{{ cls.name }}</span>
+        <span style="color:var(--muted)">
+          GH₵{{ "%.0f"|format(cls.paid) }} / GH₵{{ "%.0f"|format(cls.due) }}
+          <span class="badge {% if cls.due>0 and cls.paid>=cls.due %}bg{% elif cls.paid>0 %}bo{% else %}br{% endif %}" style="margin-left:4px;font-size:9.5px">
+            {{ cls.cleared }}/{{ cls.total_students }} cleared
+          </span>
+        </span>
+      </div>
+      <div style="background:#e8f5e9;border-radius:5px;height:9px;overflow:hidden">
+        {% if cls.due > 0 %}
+        <div style="height:100%;border-radius:5px;background:{% if cls.paid>=cls.due %}#22C55E{% elif cls.paid/cls.due>0.5 %}var(--s){% else %}var(--red){% endif %};width:{{ ([cls.paid/cls.due*100,100]|min)|round }}%;transition:.5s"></div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">No fee records for this term.</div>
+    {% endif %}
+  </div>
+
+  <!-- Top debtors -->
+  <div class="card">
+    <div class="card-title">🔴 Top Outstanding Balances</div>
+    {% if debtors %}
+    {% for d in debtors %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f4f2;font-size:12.5px">
+      <div>
+        <div style="font-weight:600">{{ d.name }}</div>
+        <div style="font-size:11px;color:var(--muted)">{{ d.class_name }}</div>
+      </div>
+      <span style="font-weight:700;color:var(--red);font-size:13px">GH₵{{ "%.2f"|format(d.balance) }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">🎉 No outstanding balances!</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endif %}
+
+<div class="fbar">
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <select name="class_id" onchange="this.form.submit()">
+      <option value="">All Classes</option>
+      {% for cls in classes %}
+      <option value="{{ cls.id }}" {% if class_filter|string==cls.id|string %}selected{% endif %}>{{ cls.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}<option value="{{ t }}" {% if term==t %}selected{% endif %}>Term {{ t }}</option>{% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2024/2025'] %}
+      <option value="{{ yr }}" {% if academic_year==yr %}selected{% endif %}>{{ yr }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  <a href="{{ url_for('bulk_fee_receipts', term=term, year=academic_year, class_id=class_filter) }}"
+     target="_blank" class="btn btn-o btn-sm" style="margin-left:auto" title="Print all cleared receipts">
+    🖨️ Print All Receipts
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-title">💰 Fee Records — Term {{ term }}, {{ academic_year }}</div>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Student</th><th>Class</th><th>Amount Due</th><th>Amount Paid</th><th>Balance</th><th>Progress</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for s in students %}
+    {% set bal = (s.amount_due or 0) - (s.amount_paid or 0) %}
+    {% set pct = ((s.amount_paid or 0)/(s.amount_due or 1)*100)|round|int if s.amount_due else 0 %}
+    <tr>
+      <td>
+        <strong>{{ s.first_name }} {{ s.last_name }}</strong>
+        <div style="font-size:11px;color:var(--muted)">{{ s.student_id }}</div>
+      </td>
+      <td><span class="badge bb">{{ s.class_name or '—' }}</span></td>
+      <td>GH₵{{ "%.2f"|format(s.amount_due or 0) }}</td>
+      <td>GH₵{{ "%.2f"|format(s.amount_paid or 0) }}</td>
+      <td style="font-weight:600;color:{% if bal>0 %}var(--red){% else %}#22C55E{% endif %}">
+        GH₵{{ "%.2f"|format(bal) }}
+      </td>
+      <td>
+        <div style="font-size:10.5px;color:var(--muted);margin-bottom:2px">{{ pct }}%</div>
+        <div class="fee-bar-wrap">
+          <div class="fee-bar" style="width:{{ [pct,100]|min }}%;{% if pct<50 %}background:var(--red);{% elif pct<100 %}background:var(--s);{% endif %}"></div>
+        </div>
+      </td>
+      <td>
+        {% if bal<=0 %}<span class="badge bg">✅ Cleared</span>
+        {% elif s.amount_paid>0 %}<span class="badge bo">⚠️ Partial</span>
+        {% else %}<span class="badge br">❌ Unpaid</span>{% endif %}
+      </td>
+      <td>
+        <div style="display:flex;gap:5px;align-items:center">
+          <button class="btn btn-s btn-sm" onclick="openFeeModal({{ s.id }},'{{ s.first_name }} {{ s.last_name }}',{{ s.amount_due or 0 }},{{ s.amount_paid or 0 }})">
+            💰 Record
+          </button>
+          {% if s.fee_id %}
+          <a href="{{ url_for('fee_receipt', fee_id=s.fee_id) }}" target="_blank"
+             class="btn btn-p btn-sm" title="Print receipt">🧾</a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No students found.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- Fee Modal -->
+<div class="fee-modal" id="feeModal">
+  <div class="fee-modal-box">
+    <h3 style="margin-bottom:16px;font-size:15px">💰 Record Fee Payment</h3>
+    <form method="post" action="{{ url_for('save_fee') }}">
+      <input type="hidden" name="student_id" id="modal_sid">
+      <input type="hidden" name="term" value="{{ term }}">
+      <input type="hidden" name="academic_year" value="{{ academic_year }}">
+      <input type="hidden" name="class_filter" value="{{ class_filter }}">
+      <div id="modal_name" style="font-weight:600;margin-bottom:14px;color:var(--p)"></div>
+      <div class="grid-2">
+        <div class="fg"><label>Fee Type</label>
+          <select name="fee_type">
+            <option>School Fees</option><option>Exam Fees</option>
+            <option>Sports Fees</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Amount Due (GH₵)</label><input name="amount_due" type="number" step="0.01" id="modal_due"></div>
+        <div class="fg"><label>Amount Paid (GH₵)</label><input name="amount_paid" type="number" step="0.01" id="modal_paid"></div>
+        <div class="fg"><label>Payment Date</label><input name="payment_date" type="date"></div>
+        <div class="fg"><label>Payment Method</label>
+          <select name="payment_method">
+            <option>Cash</option><option>Mobile Money</option>
+            <option>Bank Transfer</option><option>Cheque</option>
+          </select>
+        </div>
+        <div class="fg"><label>Notes</label><input name="notes" placeholder="Optional note"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button type="submit" class="btn btn-p">💾 Save Payment</button>
+        <button type="button" class="btn btn-o" onclick="closeFeeModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function openFeeModal(sid,name,due,paid){
+  document.getElementById('feeModal').classList.add('open');
+  document.getElementById('modal_sid').value=sid;
+  document.getElementById('modal_name').textContent='Student: '+name;
+  document.getElementById('modal_due').value=due;
+  document.getElementById('modal_paid').value=paid;
+}
+function closeFeeModal(){ document.getElementById('feeModal').classList.remove('open'); }
+document.getElementById('feeModal').addEventListener('click',function(e){if(e.target===this)closeFeeModal();});
+</script>
+{% endblock %}

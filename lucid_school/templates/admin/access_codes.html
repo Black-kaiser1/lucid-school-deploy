@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Access Codes{% endblock %}
+{% block page_title %}🔑 Access Codes{% endblock %}
+{% block extra_css %}
+<style>
+.code-chip{font-family:monospace;font-size:15px;font-weight:800;letter-spacing:2px;
+  background:#1B4332;color:#D4A017;padding:8px 16px;border-radius:8px;display:inline-block;cursor:pointer}
+.code-chip:hover{background:#2D6A4F}
+.gen-box{background:linear-gradient(135deg,#1B4332,#2D6A4F);border-radius:14px;padding:22px;color:#fff;margin-bottom:16px}
+.gen-box h2{margin:0 0 14px;font-size:17px}
+.generated-list{background:rgba(0,0,0,.2);border-radius:10px;padding:14px;margin-top:14px;display:none}
+.generated-list.show{display:block}
+.code-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px}
+.stat-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stat-pill{background:#fff;border:1.5px solid #e8f5e9;border-radius:10px;padding:10px 16px;flex:1;min-width:100px}
+.stat-pill-num{font-size:22px;font-weight:800;color:var(--p)}
+.stat-pill-lbl{font-size:11px;color:var(--muted)}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="stat-row">
+  {% set total = codes|length %}
+  {% set used = codes|selectattr('used','equalto',1)|list|length %}
+  {% set unused = total - used %}
+  <div class="stat-pill"><div class="stat-pill-num">{{ total }}</div><div class="stat-pill-lbl">Total Codes</div></div>
+  <div class="stat-pill"><div class="stat-pill-num" style="color:#22C55E">{{ unused }}</div><div class="stat-pill-lbl">Available</div></div>
+  <div class="stat-pill"><div class="stat-pill-num" style="color:var(--muted)">{{ used }}</div><div class="stat-pill-lbl">Used</div></div>
+</div>
+
+<!-- Generate form -->
+<div class="gen-box">
+  <h2>🔑 Generate Access Codes</h2>
+  <div class="grid-2">
+    <div class="fg">
+      <label style="color:rgba(255,255,255,.8);font-size:12px">Quantity</label>
+      <select id="qty" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;width:100%">
+        <option value="1">1 code</option><option value="3">3 codes</option>
+        <option value="5">5 codes</option><option value="10">10 codes</option>
+        <option value="20">20 codes</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label style="color:rgba(255,255,255,.8);font-size:12px">Plan</label>
+      <select id="plan" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;width:100%">
+        <option value="basic">Basic</option>
+        <option value="standard">Standard</option>
+        <option value="premium" selected>Premium</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label style="color:rgba(255,255,255,.8);font-size:12px">Period</label>
+      <select id="period" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;width:100%">
+        <option value="termly">Termly (1 term)</option>
+        <option value="annual">Annual (3 terms)</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label style="color:rgba(255,255,255,.8);font-size:12px">Duration (months)</label>
+      <select id="months" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;width:100%">
+        <option value="4">4 months (1 term)</option>
+        <option value="8">8 months (2 terms)</option>
+        <option value="12">12 months (1 year)</option>
+        <option value="24">24 months (2 years)</option>
+      </select>
+    </div>
+    <div class="fg" style="grid-column:1/-1">
+      <label style="color:rgba(255,255,255,.8);font-size:12px">Internal Note (optional)</label>
+      <input id="notes" placeholder="e.g. Batch for Accra schools Jan 2026"
+        style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:9px 12px;color:#fff;width:100%;font-size:13px">
+    </div>
+  </div>
+  <button onclick="generateCodes()" class="btn" style="background:#D4A017;color:#1B4332;font-weight:800;margin-top:8px">
+    ⚡ Generate Codes
+  </button>
+
+  <div class="generated-list" id="generatedList">
+    <div style="font-size:12px;color:rgba(255,255,255,.7);margin-bottom:8px">New codes generated — click any to copy:</div>
+    <div class="code-grid" id="codeGrid"></div>
+    <button onclick="copyAll()" style="margin-top:10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">
+      📋 Copy All
+    </button>
+  </div>
+</div>
+
+<!-- Existing codes table -->
+<div class="card">
+  <div class="card-title">All Codes</div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr>
+      <th>Code</th><th>Plan</th><th>Duration</th><th>Status</th>
+      <th>Used By</th><th>Used At</th><th>Note</th><th>Created</th>
+    </tr></thead>
+    <tbody>
+    {% for c in codes %}
+    <tr style="{% if c.used %}opacity:.55{% endif %}">
+      <td>
+        <span class="code-chip" onclick="copyCode('{{ c.code }}',this)">{{ c.code }}</span>
+      </td>
+      <td><span class="badge bk">{{ c.plan|title }}</span></td>
+      <td>{{ c.months }}mo / {{ c.period_type }}</td>
+      <td>
+        {% if c.used %}<span class="badge bg">✅ Used</span>
+        {% else %}<span class="badge bo">🟡 Available</span>{% endif %}
+      </td>
+      <td style="font-size:12px">{{ c.school_name or '—' }}</td>
+      <td style="font-size:11px;color:var(--muted)">{{ c.used_at[:16] if c.used_at else '—' }}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.notes or '—' }}</td>
+      <td style="font-size:11px;color:var(--muted)">{{ c.created_at[:10] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No codes yet. Generate some above.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+var lastCodes = [];
+function generateCodes(){
+  var btn = event.target; btn.disabled=true; btn.textContent='⏳ Generating…';
+  fetch('/platform/codes/generate',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      qty: document.getElementById('qty').value,
+      plan: document.getElementById('plan').value,
+      period_type: document.getElementById('period').value,
+      months: document.getElementById('months').value,
+      notes: document.getElementById('notes').value
+    })
+  }).then(r=>r.json()).then(function(d){
+    btn.disabled=false; btn.textContent='⚡ Generate Codes';
+    if(d.status==='ok'){
+      lastCodes = d.codes;
+      var grid = document.getElementById('codeGrid');
+      grid.innerHTML = d.codes.map(function(code){
+        return '<div class="code-chip" onclick="copyCode(\''+code+'\',this)">'+code+'</div>';
+      }).join('');
+      document.getElementById('generatedList').classList.add('show');
+      setTimeout(function(){ location.reload(); }, 3000);
+    }
+  });
+}
+function copyCode(code, el){
+  navigator.clipboard.writeText(code).then(function(){
+    var orig = el.textContent; el.textContent='✅ Copied!';
+    setTimeout(function(){ el.textContent=orig; },1500);
+  });
+}
+function copyAll(){
+  navigator.clipboard.writeText(lastCodes.join('\n')).then(function(){
+    event.target.textContent='✅ Copied all!';
+  });
+}
+</script>
+{% endblock %}

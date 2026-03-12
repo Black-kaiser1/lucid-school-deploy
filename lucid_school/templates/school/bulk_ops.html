@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Operations{% endblock %}
+{% block page_title %}⚡ Bulk Operations{% endblock %}
+
+{% block extra_css %}
+<style>
+.op-card{background:#fff;border:1.5px solid #e8f5e9;border-radius:12px;padding:20px 22px;margin-bottom:14px}
+.op-title{font-size:14px;font-weight:700;color:var(--p);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.op-desc{font-size:12.5px;color:var(--muted);margin-bottom:16px}
+.op-warning{background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:10px 14px;font-size:12px;color:#5D4037;margin-bottom:14px}
+.op-success{background:#DCEDC8;border:1px solid #7CB342;border-radius:8px;padding:10px 14px;font-size:12px;color:#1B5E20;display:none;margin-top:12px}
+.op-error{background:#FFCDD2;border:1px solid #E57373;border-radius:8px;padding:10px 14px;font-size:12px;color:#B71C1C;display:none;margin-top:12px}
+.map-row{display:grid;grid-template-columns:1fr 28px 1fr 36px;gap:8px;align-items:center;margin-bottom:8px;font-size:12.5px}
+.term-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div style="max-width:760px">
+
+  <!-- ── Promote Single Class ──────────────────────────────────────────────── -->
+  <div class="op-card">
+    <div class="op-title">🎓 Promote Class Students</div>
+    <div class="op-desc">Move all active students from one class to another in a single click.</div>
+    <div class="op-warning">
+      ⚠️ This changes every student's class assignment. It does not delete scores or records — only the class they're in changes.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 40px 1fr;gap:10px;align-items:end;margin-bottom:12px">
+      <div class="fg">
+        <label>From Class</label>
+        <select id="promFrom">
+          <option value="">Select class…</option>
+          {% for cls in classes %}
+          <option value="{{ cls.id }}">{{ cls.name }} ({{ cls.student_count }} students)</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="text-align:center;font-size:20px;padding-bottom:4px">→</div>
+      <div class="fg">
+        <label>To Class</label>
+        <select id="promTo">
+          <option value="">Select class…</option>
+          {% for cls in classes %}
+          <option value="{{ cls.id }}">{{ cls.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-p" onclick="promoteClass()">🎓 Promote Students</button>
+    <div class="op-success" id="promOk"></div>
+    <div class="op-error" id="promErr"></div>
+  </div>
+
+  <!-- ── Promote All Classes ───────────────────────────────────────────────── -->
+  <div class="op-card">
+    <div class="op-title">🏫 End-of-Year Bulk Promotion</div>
+    <div class="op-desc">
+      Set up the promotion chain — each class → next class — then run it all at once.
+      Typically used at the end of the academic year.
+    </div>
+    <div class="op-warning">
+      ⚠️ This affects ALL students in every class below. Review the mapping carefully before running.
+    </div>
+
+    <div id="mappingRows">
+      {% for cls in classes %}
+      <div class="map-row">
+        <select class="map-from" disabled style="background:#f5f5f5">
+          <option value="{{ cls.id }}">{{ cls.name }}</option>
+        </select>
+        <span style="text-align:center">→</span>
+        <select class="map-to" data-from="{{ cls.id }}">
+          <option value="">(skip / leave)</option>
+          {% for c2 in classes %}
+          {% if c2.id != cls.id %}
+          <option value="{{ c2.id }}">{{ c2.name }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+        <span style="font-size:10.5px;color:var(--muted);text-align:center">{{ cls.student_count }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <button class="btn btn-p" style="margin-top:8px" onclick="promoteAll()">
+      ⚡ Run Bulk Promotion
+    </button>
+    <div class="op-success" id="allOk"></div>
+    <div class="op-error" id="allErr"></div>
+  </div>
+
+  <!-- ── End-of-Term Rollover ──────────────────────────────────────────────── -->
+  <div class="op-card">
+    <div class="op-title">📅 Advance to Next Term</div>
+    <div class="op-desc">
+      Update the school's current term (and optionally the academic year). All score entry, 
+      remarks, and reports will default to the new term going forward.
+    </div>
+
+    <div style="background:var(--light);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12.5px">
+      Current: <strong>Term {{ school.current_term }}</strong> &nbsp;·&nbsp; <strong>{{ school.current_year }}</strong>
+    </div>
+
+    <div class="term-grid">
+      <div class="fg">
+        <label>New Term</label>
+        <select id="newTerm">
+          {% for t in [1,2,3] %}
+          <option value="{{ t }}" {% if t == (school.current_term % 3) + 1 %}selected{% endif %}>Term {{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Academic Year <span style="font-size:10px;color:var(--muted)">(optional change)</span></label>
+        <input id="newYear" value="{{ school.current_year }}" placeholder="e.g. 2026/2027">
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end">
+        <button class="btn btn-p" style="width:100%" onclick="advanceTerm()">📅 Update Term</button>
+      </div>
+    </div>
+    <div class="op-success" id="termOk"></div>
+    <div class="op-error" id="termErr"></div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Promote single class ──────────────────────────────────────────────────── */
+function promoteClass(){
+  var from = document.getElementById('promFrom').value;
+  var to   = document.getElementById('promTo').value;
+  if(!from||!to){ showMsg('promErr','Select both classes.'); return; }
+  if(from===to){ showMsg('promErr','Choose two different classes.'); return; }
+  if(!confirm('Move ALL students from the selected class? This cannot be undone easily.')) return;
+  fetch('/school/bulk/promote',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'from_class_id='+from+'&to_class_id='+to
+  }).then(r=>r.json()).then(function(d){
+    if(d.status==='ok') showMsg('promOk','✅ '+d.message);
+    else showMsg('promErr','❌ '+d.message);
+  }).catch(e=>showMsg('promErr','❌ '+e.message));
+}
+
+/* ── Promote all ───────────────────────────────────────────────────────────── */
+function promoteAll(){
+  var mapping=[];
+  document.querySelectorAll('.map-to').forEach(function(sel){
+    if(sel.value){
+      mapping.push({from_id:parseInt(sel.dataset.from),to_id:parseInt(sel.value)});
+    }
+  });
+  if(!mapping.length){ showMsg('allErr','Set at least one class → class mapping above.'); return; }
+  var summary = mapping.map(function(m){
+    var fl=document.querySelector('.map-from[disabled] option[value="'+m.from_id+'"]');
+    var tl=document.querySelector('.map-to[data-from="'+m.from_id+'"] option[value="'+m.to_id+'"]');
+    return (fl?fl.text:'?')+' → '+(tl?tl.text:'?');
+  }).join('\n');
+  if(!confirm('Run bulk promotion?\n\n'+summary+'\n\nThis will move ALL students in those classes.')) return;
+  fetch('/school/bulk/promote-all',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(mapping)
+  }).then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      var lines=d.results.map(function(r){return r.moved+' students: '+r.from+' → '+r.to}).join('\n');
+      showMsg('allOk','✅ Done! Total moved: '+d.total+'\n'+lines);
+    } else showMsg('allErr','❌ '+d.message);
+  }).catch(e=>showMsg('allErr','❌ '+e.message));
+}
+
+/* ── Advance term ──────────────────────────────────────────────────────────── */
+function advanceTerm(){
+  var term = document.getElementById('newTerm').value;
+  var year = document.getElementById('newYear').value.trim();
+  if(!confirm('Change current term to Term '+term+(year?' ('+year+')')+'? This affects the default term shown on all pages.')) return;
+  var body='new_term='+term+(year?'&new_year='+encodeURIComponent(year):'');
+  fetch('/school/bulk/set-term',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:body
+  }).then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      showMsg('termOk','✅ School is now on Term '+d.term+(d.year?' — '+d.year:'')+'. Refresh the page to see the updated term.');
+    } else showMsg('termErr','❌ '+d.message);
+  }).catch(e=>showMsg('termErr','❌ '+e.message));
+}
+
+/* ── Helpers ───────────────────────────────────────────────────────────────── */
+function showMsg(id, msg){
+  var el=document.getElementById(id);
+  el.textContent=msg; el.style.display='block';
+  el.style.whiteSpace='pre-line';
+  // hide opposite
+  var opp=id.endsWith('Ok')? id.replace('Ok','Err') : id.replace('Err','Ok');
+  document.getElementById(opp).style.display='none';
+}
+</script>
+{% endblock %}

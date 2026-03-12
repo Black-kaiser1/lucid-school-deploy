@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bulk Receipts — Term {{ term }}, {{ year }} — {{ school.name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --p:  {{ school.primary_color   or '#1B4332' }};
+  --s:  {{ school.secondary_color or '#D4A017' }};
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'DM Sans',sans-serif; background:#F3F4F6; color:#1A1A2E; padding:20px; }
+
+/* ── Screen controls ────────────────────────────────── */
+.controls {
+  max-width:680px; margin:0 auto 16px;
+  display:flex; gap:10px; align-items:center;
+}
+.controls a { font-size:13px; color:#6B7280; text-decoration:none; }
+.controls a:hover { color:var(--p); }
+.btn-print {
+  margin-left:auto;
+  background:var(--p); color:#fff;
+  border:none; padding:9px 20px; border-radius:8px;
+  font-size:13px; font-weight:600; cursor:pointer;
+  font-family:'DM Sans',sans-serif;
+}
+.badge-count {
+  background:var(--s); color:var(--p);
+  padding:3px 12px; border-radius:20px;
+  font-size:12px; font-weight:700;
+}
+
+/* ── Single receipt card ────────────────────────────── */
+.receipt {
+  width:680px; max-width:100%;
+  margin:0 auto 24px;
+  background:#fff;
+  border-radius:10px;
+  box-shadow:0 2px 12px rgba(0,0,0,.08);
+  overflow:hidden;
+  page-break-after:always;
+  page-break-inside:avoid;
+}
+.receipt:last-child { page-break-after:auto; margin-bottom:0; }
+
+.rh {
+  background:var(--p);
+  padding:18px 24px 14px;
+  display:flex; align-items:center; gap:14px;
+}
+.rh-logo {
+  width:44px; height:44px; flex-shrink:0;
+  border-radius:8px; border:2px solid var(--s);
+  background:rgba(255,255,255,.12);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Playfair Display',serif;
+  font-size:18px; font-weight:900; color:var(--s);
+  overflow:hidden;
+}
+.rh-logo img { width:100%; height:100%; object-fit:contain; }
+.rh-school { flex:1; }
+.rh-school .name { font-family:'Playfair Display',serif; font-size:14px; font-weight:900; color:#fff; }
+.rh-school .sub { font-size:10px; color:rgba(255,255,255,.6); }
+.rh-right { text-align:right; }
+.rh-right .rcpt-word { font-family:'Playfair Display',serif; font-size:18px; font-weight:900; color:var(--s); }
+.rh-right .rcpt-num { font-family:'DM Mono',monospace; font-size:10px; color:rgba(255,255,255,.5); }
+
+.gold-strip { height:3px; background:linear-gradient(90deg,var(--s),var(--p),var(--s)); }
+
+.rb { padding:16px 24px 14px; }
+
+.info-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px 16px; margin-bottom:14px; }
+.ib .lbl { font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:#6B7280; margin-bottom:2px; }
+.ib .val { font-size:12.5px; font-weight:600; }
+
+.pay-row {
+  display:grid; grid-template-columns:1fr 120px 120px 120px;
+  gap:0; border-radius:7px; overflow:hidden;
+  border:1px solid #E5E7EB; font-size:12px;
+}
+.ph { background:var(--p); color:#fff; padding:7px 10px; font-size:10px; font-weight:600; text-transform:uppercase; }
+.ph:nth-child(n+2) { text-align:right; }
+.pd { padding:9px 10px; border-top:1px solid #E5E7EB; }
+.pd:nth-child(n+2) { text-align:right; font-weight:700; }
+.pd.desc .type { font-weight:600; }
+.pd.desc .sub  { font-size:10px; color:#6B7280; }
+
+.totals-strip {
+  display:flex; gap:0; margin-top:10px; border-radius:7px; overflow:hidden;
+  border:1px solid #E5E7EB; text-align:center;
+}
+.ts { flex:1; padding:8px; border-right:1px solid #E5E7EB; }
+.ts:last-child { border-right:none; }
+.ts .tv { font-size:14px; font-weight:700; }
+.ts .tl { font-size:9px; text-transform:uppercase; letter-spacing:.6px; color:#6B7280; margin-top:1px; }
+.ts.cleared { background:#ECFDF5; }
+.ts.cleared .tv { color:#065F46; }
+
+.sig-strip {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:12px; margin-top:12px; padding-top:10px;
+  border-top:1px dashed #E5E7EB;
+}
+.sb { text-align:center; }
+.sb .line { height:1px; background:#1A1A2E; margin-bottom:4px; }
+.sb .slbl { font-size:9px; color:#6B7280; }
+
+.rf {
+  background:#F9FAFB; border-top:1px solid #E5E7EB;
+  padding:8px 24px;
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:10px; color:#9CA3AF;
+}
+
+/* empty state */
+.empty { text-align:center; padding:60px; max-width:680px; margin:0 auto; }
+
+/* ── Print ──────────────────────────────────────────── */
+@media print {
+  body { background:#fff; padding:0; }
+  .controls { display:none !important; }
+  .receipt { box-shadow:none; border-radius:0; width:100%; max-width:100%; margin-bottom:0; }
+  @page { margin:8mm; size:A5 portrait; }
+}
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <a href="javascript:history.back()">← Back to Fees</a>
+  {% if fees %}
+  <span class="badge-count">{{ fees|length }} receipt{{ 's' if fees|length != 1 }}</span>
+  <button class="btn-print" onclick="window.print()">🖨️ Print All {{ fees|length }} Receipts</button>
+  {% endif %}
+</div>
+
+{% if not fees %}
+<div class="empty">
+  <div style="font-size:48px;margin-bottom:12px">📭</div>
+  <div style="font-size:16px;font-weight:700;color:var(--p);margin-bottom:6px">No cleared receipts found</div>
+  <div style="font-size:13px;color:#6B7280">
+    There are no fully-paid students for Term {{ term }}, {{ year }}.
+  </div>
+</div>
+{% endif %}
+
+{% for f in fees %}
+{% set bal = (f.amount_due or 0) - (f.amount_paid or 0) %}
+{% set rcpt_no = 'RCPT-%02d-%05d' % (f.school_id, f.id) %}
+<div class="receipt">
+
+  <!-- Header -->
+  <div class="rh">
+    <div class="rh-logo">
+      {% if school.logo_path %}
+      <img src="/uploads/logos/{{ school.logo_path }}"
+           onerror="this.outerHTML='{{ school.short_name[:2] if school.short_name else school.name[:1] }}'">
+      {% else %}{{ school.short_name[:2] if school.short_name else school.name[:1] }}{% endif %}
+    </div>
+    <div class="rh-school">
+      <div class="name">{{ school.name }}</div>
+      <div class="sub">{{ school.address or '' }}</div>
+    </div>
+    <div class="rh-right">
+      <div class="rcpt-word">RECEIPT</div>
+      <div class="rcpt-num">{{ rcpt_no }}</div>
+    </div>
+  </div>
+  <div class="gold-strip"></div>
+
+  <!-- Body -->
+  <div class="rb">
+
+    <!-- Student info -->
+    <div class="info-row">
+      <div class="ib">
+        <div class="lbl">Student Name</div>
+        <div class="val">{{ f.first_name }} {{ f.last_name }}</div>
+      </div>
+      <div class="ib">
+        <div class="lbl">Student ID</div>
+        <div class="val" style="font-family:'DM Mono',monospace;font-size:11.5px">{{ f.stu_code }}</div>
+      </div>
+      <div class="ib">
+        <div class="lbl">Class</div>
+        <div class="val">{{ f.class_name or '—' }}</div>
+      </div>
+      <div class="ib">
+        <div class="lbl">Parent</div>
+        <div class="val" style="font-size:11.5px">{{ f.parent_name or '—' }}</div>
+      </div>
+    </div>
+
+    <!-- Payment row -->
+    <div class="pay-row">
+      <div class="ph">Description</div>
+      <div class="ph">Date</div>
+      <div class="ph">Method</div>
+      <div class="ph">Amount</div>
+      <div class="pd desc">
+        <div class="type">{{ f.fee_type or 'School Fees' }}</div>
+        <div class="sub">Term {{ f.term }} — {{ f.academic_year }}</div>
+      </div>
+      <div class="pd" style="font-family:'DM Mono',monospace;font-size:11px">{{ f.payment_date or '—' }}</div>
+      <div class="pd">{{ f.payment_method or '—' }}</div>
+      <div class="pd">GH₵{{ "%.2f"|format(f.amount_paid or 0) }}</div>
+    </div>
+
+    <!-- Totals strip -->
+    <div class="totals-strip">
+      <div class="ts">
+        <div class="tv">GH₵{{ "%.2f"|format(f.amount_due or 0) }}</div>
+        <div class="tl">Total Due</div>
+      </div>
+      <div class="ts cleared">
+        <div class="tv">GH₵{{ "%.2f"|format(f.amount_paid or 0) }}</div>
+        <div class="tl">Amount Paid</div>
+      </div>
+      <div class="ts cleared">
+        <div class="tv">✅ CLEARED</div>
+        <div class="tl">Balance: GH₵{{ "%.2f"|format(bal|abs) }}</div>
+      </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="sig-strip">
+      <div class="sb"><div class="line"></div><div class="slbl">Cashier / Bursar</div></div>
+      <div class="sb"><div class="line"></div><div class="slbl">Head Teacher</div></div>
+      <div class="sb"><div class="line"></div><div class="slbl">Parent / Guardian</div></div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="rf">
+    <span>{{ rcpt_no }} &nbsp;·&nbsp; Official receipt — keep for records</span>
+    <span>{{ school.phone or '' }}</span>
+  </div>
+
+</div>
+{% endfor %}
+
+</body>
+</html>

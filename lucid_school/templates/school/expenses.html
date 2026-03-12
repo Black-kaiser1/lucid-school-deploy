@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Expenses{% endblock %}
+{% block page_title %}🧾 School Expenses{% endblock %}
+{% block extra_css %}
+<style>
+.summary-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.s-card{background:#fff;border-radius:10px;border:1.5px solid #e8f5e9;padding:12px 14px;text-align:center}
+.s-num{font-size:20px;font-weight:800;color:var(--p)}
+.s-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.exp-row{display:grid;grid-template-columns:90px 110px 1fr 90px 70px 36px;gap:8px;align-items:center;padding:9px 10px;border-bottom:1px solid #f0f4f2;font-size:12.5px}
+.exp-row:hover{background:#f8fff9}
+.exp-head{background:var(--light);border-radius:8px;font-size:10.5px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:.4px}
+.cat-badge{border-radius:20px;padding:2px 8px;font-size:10.5px;font-weight:600;background:var(--light);color:var(--p)}
+.income-surplus{background:linear-gradient(135deg,#1B4332,#2D6A4F);color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:14px}
+.is-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.is-cell{background:rgba(255,255,255,.12);border-radius:8px;padding:10px;text-align:center}
+.is-num{font-size:22px;font-weight:800}
+.is-lbl{font-size:10.5px;opacity:.75}
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Filter bar -->
+<div class="fbar" style="margin-bottom:12px">
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}<option value="{{ t }}" {% if term==t %}selected{% endif %}>Term {{ t }}</option>{% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2024/2025'] %}<option value="{{ yr }}" {% if year==yr %}selected{% endif %}>{{ yr }}</option>{% endfor %}
+    </select>
+    <select name="category" onchange="this.form.submit()">
+      <option value="">All Categories</option>
+      {% for cat in categories %}<option value="{{ cat }}" {% if cat_filter==cat %}selected{% endif %}>{{ cat }}</option>{% endfor %}
+    </select>
+  </form>
+  <button class="btn btn-p" onclick="toggleAdd()">➕ Record Expense</button>
+</div>
+
+<!-- Income vs Expenses summary -->
+{% set balance = fees_collected - grand_total %}
+<div class="income-surplus">
+  <div style="font-size:13px;font-weight:700;opacity:.9">Term {{ term }}, {{ year }} Financial Summary</div>
+  <div class="is-grid">
+    <div class="is-cell">
+      <div class="is-num">GH₵{{ "%.0f"|format(fees_collected) }}</div>
+      <div class="is-lbl">Fees Collected</div>
+    </div>
+    <div class="is-cell">
+      <div class="is-num">GH₵{{ "%.0f"|format(grand_total) }}</div>
+      <div class="is-lbl">Total Expenses</div>
+    </div>
+    <div class="is-cell">
+      <div class="is-num" style="color:{% if balance>=0 %}#A7F3D0{% else %}#FECACA{% endif %}">
+        {% if balance >= 0 %}+{% endif %}GH₵{{ "%.0f"|format(balance) }}
+      </div>
+      <div class="is-lbl">{% if balance >= 0 %}Surplus{% else %}Deficit{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Category totals pills -->
+{% if totals %}
+<div class="summary-row">
+  {% for t in totals %}
+  <div class="s-card">
+    <div class="s-num">GH₵{{ "%.0f"|format(t.total) }}</div>
+    <div class="s-lbl">{{ t.category }}</div>
+    <div style="font-size:10px;color:var(--muted)">{{ t.count }} record{{ 's' if t.count!=1 else '' }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Add expense form (hidden) -->
+<div id="addExpense" style="display:none" class="card" style="margin-bottom:14px">
+  <div class="card-title">➕ Record Expense</div>
+  <form method="post" action="{{ url_for('add_expense') }}">
+    <input type="hidden" name="term" value="{{ term }}">
+    <input type="hidden" name="academic_year" value="{{ year }}">
+    <div class="grid-2">
+      <div class="fg">
+        <label>Category *</label>
+        <select name="category" required>
+          {% for cat in categories %}<option>{{ cat }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Amount (GH₵) *</label>
+        <input name="amount" type="number" step="0.01" min="0.01" required placeholder="0.00">
+      </div>
+      <div class="fg" style="grid-column:1/-1">
+        <label>Description *</label>
+        <input name="description" required placeholder="e.g. January electricity bill">
+      </div>
+      <div class="fg">
+        <label>Date *</label>
+        <input name="expense_date" type="date" value="{{ now[:10] if now else '' }}" required>
+      </div>
+      <div class="fg">
+        <label>Receipt / Reference</label>
+        <input name="receipt_ref" placeholder="Optional receipt number">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-p">💾 Save Expense</button>
+    <button type="button" class="btn btn-sm" style="background:#f0f4f2;margin-left:8px" onclick="toggleAdd()">Cancel</button>
+  </form>
+</div>
+
+<!-- Expenses table -->
+<div class="card" style="padding:0;overflow:hidden">
+  <div style="overflow-x:auto">
+  <div style="min-width:560px">
+    <div class="exp-row exp-head">
+      <span>Date</span><span>Category</span><span>Description</span>
+      <span>Amount</span><span>Receipt</span><span></span>
+    </div>
+    {% for e in expenses %}
+    <div class="exp-row" id="exp-{{ e.id }}">
+      <span style="color:var(--muted)">{{ e.expense_date }}</span>
+      <span><span class="cat-badge">{{ e.category }}</span></span>
+      <span style="font-weight:500">{{ e.description }}</span>
+      <span style="font-weight:700;color:var(--p)">GH₵{{ "%.2f"|format(e.amount) }}</span>
+      <span style="font-size:11px;color:var(--muted)">{{ e.receipt_ref or '—' }}</span>
+      <button onclick="delExp({{ e.id }})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:15px;opacity:.6">🗑️</button>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:32px;color:var(--muted)">
+      No expenses recorded for Term {{ term }}, {{ year }}.
+    </div>
+    {% endfor %}
+    {% if grand_total > 0 %}
+    <div class="exp-row" style="background:var(--light);font-weight:700;font-size:13px">
+      <span></span><span></span><span style="text-align:right;padding-right:10px">TOTAL</span>
+      <span style="color:var(--p)">GH₵{{ "%.2f"|format(grand_total) }}</span>
+      <span></span><span></span>
+    </div>
+    {% endif %}
+  </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// Set today's date in the form
+document.addEventListener('DOMContentLoaded', function(){
+  var d = document.querySelector('input[name="expense_date"]');
+  if(d && !d.value) d.value = new Date().toISOString().slice(0,10);
+});
+function toggleAdd(){
+  var el = document.getElementById('addExpense');
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+function delExp(id){
+  if(!confirm('Delete this expense record?')) return;
+  fetch('/school/expenses/'+id+'/delete',{method:'POST'})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      var row = document.getElementById('exp-'+id);
+      if(row) row.remove();
+    }
+  });
+}
+</script>
+{% endblock %}

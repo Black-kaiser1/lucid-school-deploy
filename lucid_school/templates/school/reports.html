@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block title %}Reports & Email{% endblock %}
+{% block page_title %}📄 Report Cards & Email{% endblock %}
+{% block extra_css %}
+<style>
+.progress-wrap{background:#e2e8f0;border-radius:20px;height:10px;overflow:hidden;margin:8px 0}
+.progress-fill{background:linear-gradient(90deg,var(--p),var(--mint));height:100%;border-radius:20px;transition:width .3s}
+.job-panel{background:var(--light);border:1px solid var(--mint);border-radius:var(--r);padding:16px;display:none;margin-top:14px}
+.result-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;border-bottom:1px solid #f0f4f2}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="fbar">
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <select name="class_id" onchange="this.form.submit()">
+      <option value="">Select Class</option>
+      {% for cls in classes %}
+      <option value="{{ cls.id }}" {% if class_filter|string==cls.id|string %}selected{% endif %}>{{ cls.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}<option value="{{ t }}" {% if term==t %}selected{% endif %}>Term {{ t }}</option>{% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2024/2025'] %}
+      <option value="{{ yr }}" {% if academic_year==yr %}selected{% endif %}>{{ yr }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% if class_filter %}
+  <div style="display:flex;gap:8px;margin-left:auto">
+    <a href="{{ url_for('broadsheet', class_id=class_filter, term=term, year=academic_year) }}"
+       class="btn btn-s" target="_blank">📊 Broadsheet</a>
+  </div>
+  {% endif %}
+</div>
+
+<div style="display:grid;grid-template-columns:1fr {% if not is_teacher %}380px{% endif %};gap:14px">
+
+  <!-- Student List -->
+  <div class="card">
+    <div class="card-title">
+      📋 Students ({{ students|length }})
+      {% if not is_teacher %}
+      <label style="margin-left:auto;display:flex;align-items:center;gap:5px;font-weight:400;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="selAll" onchange="toggleAll(this)"> Select All
+      </label>
+      {% endif %}
+    </div>
+    <div class="tw"><table>
+      <thead><tr>
+        <th><input type="checkbox" onchange="toggleAll(this)"></th>
+        <th>Student</th><th>Class</th><th>Email</th><th>Phone</th><th>PDF</th>
+      </tr></thead>
+      <tbody>
+      {% for s in students %}
+      <tr>
+        <td><input type="checkbox" class="stu-check" value="{{ s.id }}" data-name="{{ s.first_name }} {{ s.last_name }}"></td>
+        <td>
+          <strong>{{ s.first_name }} {{ s.last_name }}</strong>
+          <div style="font-size:10.5px;color:var(--muted)">{{ s.student_id }}</div>
+        </td>
+        <td><span class="badge bb">{{ s.class_name or '—' }}</span></td>
+        <td style="font-size:11px">
+          {% if s.parent_email %}
+            <span style="color:#22C55E">✅</span> {{ s.parent_email[:22] }}{% if s.parent_email|length>22 %}…{% endif %}
+          {% else %}<span style="color:var(--red)">❌ None</span>{% endif %}
+        </td>
+        <td style="font-size:11px">{{ s.parent_phone or '—' }}</td>
+        <td>
+          <a href="{{ url_for('preview_report', sid=s.id, term=term, year=academic_year) }}"
+             class="btn btn-o btn-sm" target="_blank">📄 PDF</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Select a class above.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <!-- Send Panel (admin only) -->
+  {% if not is_teacher %}
+  <div>
+    <div class="card">
+      <div class="card-title">📤 Send Report Cards</div>
+      <div id="sel-info" style="font-size:12px;color:var(--muted);margin-bottom:12px">No students selected.</div>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="btn btn-sm" id="tab-email" style="background:var(--p);color:#fff" onclick="showTab('email')">📧 Email</button>
+        <button class="btn btn-sm btn-o" id="tab-sms" onclick="showTab('sms')">📱 SMS</button>
+      </div>
+
+      <!-- Email Tab -->
+      <div id="panel-email">
+        <div class="fg"><label>SMTP Host</label><input id="smtp_host" value="smtp.gmail.com"></div>
+        <div class="grid-2">
+          <div class="fg"><label>Port</label><input id="smtp_port" value="587" type="number"></div>
+          <div class="fg"><label>TLS</label>
+            <select id="smtp_tls"><option value="true">Yes</option><option value="false">No (SSL)</option></select>
+          </div>
+        </div>
+        <div class="fg"><label>Gmail Address</label><input id="smtp_user" type="email" placeholder="school@gmail.com"></div>
+        <div class="fg">
+          <label>App Password</label>
+          <input id="smtp_pass" type="password" placeholder="16-char App Password">
+          <span style="font-size:10.5px;color:var(--muted)">💡 Not your Gmail password.
+            <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--p)">Get App Password →</a>
+          </span>
+        </div>
+      </div>
+
+      <!-- SMS Tab -->
+      <div id="panel-sms" style="display:none">
+        {% if sms_cfg and sms_cfg.is_active %}
+        <div class="alert alert-success">✅ SMS configured via {{ sms_cfg.provider|title }}. Ready to send.</div>
+        {% else %}
+        <div class="alert alert-info">📱 Configure SMS in Settings → SMS Configuration first.</div>
+        {% endif %}
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="send_sms_check" {% if not (sms_cfg and sms_cfg.is_active) %}disabled{% endif %}>
+          Include SMS alert to parents
+        </label>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="send_email_check" checked> Send Email
+      </label>
+
+      <button class="btn btn-p" style="width:100%;margin-top:6px" onclick="startSend()">
+        📤 Send to Selected Parents
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="job-panel" id="jobPanel">
+      <div style="font-weight:600;color:var(--p);margin-bottom:6px">📨 Sending...</div>
+      <div class="progress-wrap"><div class="progress-fill" id="progBar" style="width:0%"></div></div>
+      <div id="progText" style="font-size:12px;color:var(--muted)">0 / 0</div>
+      <div id="progCurrent" style="font-size:12px;color:var(--p);margin-top:3px"></div>
+      <div id="resultsBox" style="margin-top:10px;max-height:180px;overflow-y:auto"></div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Email Log (admin only) -->
+{% if not is_teacher %}
+<div class="card">
+  <div class="card-title">📋 Email / SMS Log</div>
+  <div class="tw"><table>
+    <thead><tr><th>Student</th><th>Email</th><th>Channel</th><th>Term</th><th>Status</th><th>Time</th></tr></thead>
+    <tbody>
+    {% for log in email_log %}
+    <tr>
+      <td>{{ log.student_name }}</td>
+      <td style="font-size:11px">{{ log.parent_email }}</td>
+      <td><span class="badge {{ 'bg' if log.channel=='email' else 'bb' }}">{{ log.channel }}</span></td>
+      <td>Term {{ log.term }}</td>
+      <td>{% if log.status=='sent' %}<span class="badge bg">✅ Sent</span>
+          {% else %}<span class="badge br" title="{{ log.error_message }}">❌ Failed</span>{% endif %}
+      </td>
+      <td style="font-size:11px;color:var(--muted)">{{ log.sent_at[:16] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">No emails sent yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleAll(cb){ document.querySelectorAll('.stu-check').forEach(c=>c.checked=cb.checked); updateSel(); }
+document.addEventListener('change',e=>{ if(e.target.classList.contains('stu-check')) updateSel(); });
+function updateSel(){
+  var n=document.querySelectorAll('.stu-check:checked').length;
+  document.getElementById('sel-info').textContent=n+' student(s) selected.';
+  document.getElementById('sel-info').style.color=n?'var(--p)':'var(--muted)';
+}
+function showTab(tab){
+  ['email','sms'].forEach(t=>{
+    document.getElementById('panel-'+t).style.display=t===tab?'block':'none';
+    var btn=document.getElementById('tab-'+t);
+    btn.style.background=t===tab?'var(--p)':'transparent';
+    btn.style.color=t===tab?'#fff':'var(--p)';
+    btn.style.border=t===tab?'none':'1.5px solid var(--p)';
+  });
+}
+function getIds(){ return Array.from(document.querySelectorAll('.stu-check:checked')).map(c=>c.value); }
+function startSend(){
+  var ids=getIds(); if(!ids.length){alert('Select at least one student.');return;}
+  var sendEmail=document.getElementById('send_email_check').checked;
+  var sendSMS=document.getElementById('send_sms_check')&&document.getElementById('send_sms_check').checked;
+  if(sendEmail){
+    var user=document.getElementById('smtp_user').value;
+    var pass=document.getElementById('smtp_pass').value;
+    if(!user||!pass){alert('Enter Gmail address and App Password.');return;}
+  }
+  if(!confirm('Send to '+ids.length+' parent(s)?')) return;
+  document.getElementById('jobPanel').style.display='block';
+  fetch('/school/reports/send',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      smtp:{host:document.getElementById('smtp_host').value,
+            port:parseInt(document.getElementById('smtp_port').value),
+            username:document.getElementById('smtp_user').value||'',
+            password:document.getElementById('smtp_pass').value||'',
+            use_tls:document.getElementById('smtp_tls').value==='true'},
+      student_ids:ids, term:{{ term }}, academic_year:"{{ academic_year }}",
+      send_email:sendEmail, send_sms:sendSMS
+    })
+  }).then(r=>r.json()).then(d=>{ if(d.status==='ok') poll(); else alert('Error: '+d.message); });
+}
+function poll(){
+  var iv=setInterval(function(){
+    fetch('/school/reports/progress').then(r=>r.json()).then(d=>{
+      var pct=d.total?Math.round(d.done/d.total*100):0;
+      document.getElementById('progBar').style.width=pct+'%';
+      document.getElementById('progText').textContent=d.done+' / '+d.total;
+      document.getElementById('progCurrent').textContent=d.current?'Sending to: '+d.current:'';
+      if(!d.running){
+        clearInterval(iv);
+        var rb=document.getElementById('resultsBox');
+        rb.innerHTML='<div style="font-weight:600;margin-bottom:5px;color:var(--p)">Results:</div>';
+        (d.results||[]).forEach(r=>{
+          rb.innerHTML+='<div class="result-row">'+(r.email_success||r.sms_success?'✅':'❌')
+            +' <strong>'+r.student_name+'</strong>'
+            +(r.email_error?' <span style="color:var(--red);font-size:10.5px">('+r.email_error+')</span>':'')
+            +'</div>';
+        });
+        setTimeout(()=>location.reload(),3000);
+      }
+    });
+  },1200);
+}
+</script>
+{% endblock %}

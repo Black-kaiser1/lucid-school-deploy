@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% block title %}Platform Dashboard{% endblock %}
+{% block page_title %}🌐 Platform Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.plat-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.ps-card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:16px 18px;position:relative;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.ps-card .ps-bar{position:absolute;bottom:0;left:0;height:3px;width:100%}
+.ps-num{font-size:28px;font-weight:700;color:var(--p);line-height:1;margin-bottom:4px}
+.ps-lbl{font-size:11.5px;color:var(--muted)}
+
+/* School expand row */
+.sch-row{border-bottom:1px solid #f0f4f2;transition:.15s}
+.sch-row:hover{background:#f8fff9}
+.sch-row:last-child{border-bottom:none}
+.sch-expand{display:none;background:#f8fff9;border-top:1px solid #e8f5e9;padding:14px 18px}
+.sch-expand.open{display:block}
+.sch-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.ss-card{background:#fff;border-radius:8px;padding:10px 12px;border:1px solid #e8f5e9;text-align:center}
+.ss-num{font-size:18px;font-weight:700;color:var(--p)}
+.ss-lbl{font-size:10.5px;color:var(--muted)}
+
+/* Edit school popup */
+.edit-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:center;justify-content:center}
+.edit-overlay.show{display:flex}
+.edit-box{background:#fff;border-radius:14px;padding:28px 28px;max-width:560px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+
+/* Plan badges */
+.plan-basic{background:#DCEDC8;color:#1B5E20}
+.plan-pro{background:#E3F2FD;color:#0D47A1}
+.plan-enterprise{background:#FFF8E1;color:#5D4037}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Platform stats -->
+<div class="plat-stats">
+  <div class="ps-card">
+    <div class="ps-bar" style="background:var(--p)"></div>
+    <div class="ps-num">{{ stats.total_schools }}</div>
+    <div class="ps-lbl">🏫 Total Schools</div>
+  </div>
+  <div class="ps-card">
+    <div class="ps-bar" style="background:#22C55E"></div>
+    <div class="ps-num" style="color:#1B5E20">{{ stats.active_schools }}</div>
+    <div class="ps-lbl">✅ Active Schools</div>
+  </div>
+  <div class="ps-card">
+    <div class="ps-bar" style="background:var(--s)"></div>
+    <div class="ps-num">{{ stats.total_students }}</div>
+    <div class="ps-lbl">👨‍🎓 Total Students</div>
+  </div>
+  <div class="ps-card">
+    <div class="ps-bar" style="background:#1565C0"></div>
+    <div class="ps-num">{{ stats.total_reports }}</div>
+    <div class="ps-lbl">📧 Reports Sent</div>
+  </div>
+</div>
+
+<!-- Schools list -->
+<div class="fbar">
+  <span style="font-size:13px;color:var(--muted)">
+    {{ schools|length }} school{{ 's' if schools|length != 1 else '' }} registered
+  </span>
+  <a href="{{ url_for('add_school') }}" class="btn btn-p">➕ Add New School</a>
+</div>
+
+<div class="card">
+  <div class="tw">
+  <table>
+    <thead>
+      <tr>
+        <th>School</th>
+        <th>Short Name</th>
+        <th>Plan</th>
+        <th>Status</th>
+        <th>Expires</th>
+        <th>Term</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for s in schools %}
+    <tr class="sch-row" id="sch-row-{{ s.id }}">
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-o btn-sm" style="padding:2px 7px;font-size:11px"
+                  onclick="toggleExpand({{ s.id }})" title="Expand">▼</button>
+          <div>
+            <strong>{{ s.name }}</strong>
+            {% if s.email %}
+            <div style="font-size:10.5px;color:var(--muted)">{{ s.email }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </td>
+      <td><span class="badge bk">{{ s.short_name }}</span></td>
+      <td>
+        <span class="badge plan-{{ s.subscription_plan }}">
+          {{ s.subscription_plan|title }}
+        </span>
+      </td>
+      <td>
+        {% if s.subscription_status=='active' %}
+          <span class="badge bg">✅ Active</span>
+        {% elif s.subscription_status=='suspended' %}
+          <span class="badge br">🚫 Suspended</span>
+        {% else %}
+          <span class="badge bo">⏰ {{ s.subscription_status|title }}</span>
+        {% endif %}
+      </td>
+      <td style="font-size:11.5px;color:var(--muted)">
+        {{ s.subscription_expires[:10] if s.subscription_expires else '—' }}
+      </td>
+      <td>
+        <span class="badge bb">Term {{ s.current_term }}</span>
+        <div style="font-size:10px;color:var(--muted)">{{ s.current_year }}</div>
+      </td>
+      <td style="font-size:11px;color:var(--muted)">{{ s.created_at[:10] if s.created_at else '—' }}</td>
+      <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <a href="{{ url_for('impersonate', sid=s.id) }}"
+             class="btn btn-s btn-sm" title="Enter school as admin">👁️ View</a>
+          <a href="{{ url_for('school_credentials', sid=s.id) }}"
+             class="btn btn-sm" style="background:#F3E5F5;color:#6A1B9A" title="View credentials & passwords">🔐</a>
+          <button class="btn btn-o btn-sm" title="Edit school details"
+                  onclick="openEdit({{ s.id }}, {{ s|tojson }})">✏️</button>
+          <form method="post" action="{{ url_for('toggle_school', sid=s.id) }}" style="display:inline;margin:0">
+            <button class="btn btn-sm {% if s.subscription_status=='active' %}btn-r{% else %}btn-p{% endif %}"
+                    title="{{ 'Suspend' if s.subscription_status=='active' else 'Activate' }}"
+                    onclick="return confirm('{{ 'Suspend' if s.subscription_status=='active' else 'Activate' }} {{ s.name }}?')">
+              {{ '🚫' if s.subscription_status=='active' else '✅' }}
+            </button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    <!-- Expand row -->
+    <tr id="expand-{{ s.id }}" style="display:none">
+      <td colspan="8" style="padding:0">
+        <div class="sch-expand" id="exp-content-{{ s.id }}">
+          <div class="sch-stats" id="sch-stats-{{ s.id }}">
+            <div class="ss-card"><div class="ss-num">…</div><div class="ss-lbl">Students</div></div>
+            <div class="ss-card"><div class="ss-num">…</div><div class="ss-lbl">Teachers</div></div>
+            <div class="ss-card"><div class="ss-num">…</div><div class="ss-lbl">Reports Sent</div></div>
+            <div class="ss-card"><div class="ss-num">…</div><div class="ss-lbl">Fees Collected</div></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)">
+            <span>📞 {{ s.phone or '—' }}</span>
+            <span>📍 {{ s.address or '—' }}</span>
+            <span>Max students: <strong>{{ s.max_students }}</strong></span>
+            {% if s.motto %}<span>💬 "{{ s.motto }}"</span>{% endif %}
+          </div>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">
+      No schools registered yet.
+      <a href="{{ url_for('add_school') }}" style="color:var(--p)">Add one →</a>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- Edit school overlay -->
+<div class="edit-overlay" id="editOverlay">
+  <div class="edit-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h2 style="margin:0;font-size:16px;color:var(--p)">✏️ Edit School</h2>
+      <button onclick="closeEdit()" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <form id="editForm" method="post">
+      <div class="grid-2">
+        <div class="fg"><label>School Name *</label><input name="name" id="eName" required></div>
+        <div class="fg"><label>Short Name *</label><input name="short_name" id="eShort" required maxlength="10"></div>
+        <div class="fg"><label>Phone</label><input name="phone" id="ePhone"></div>
+        <div class="fg"><label>Email</label><input name="email" id="eEmail" type="email"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Address</label><input name="address" id="eAddr"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Motto</label><input name="motto" id="eMotto"></div>
+      </div>
+
+      <div class="card-title" style="margin:14px 0 8px;font-size:12px">💳 Subscription</div>
+      <div class="grid-2">
+        <div class="fg"><label>Plan</label>
+          <select name="plan" id="ePlan">
+            <option value="basic">Basic</option>
+            <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div class="fg"><label>Status</label>
+          <select name="status" id="eStatus">
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="expired">Expired</option>
+          </select>
+        </div>
+        <div class="fg"><label>Expires (date)</label>
+          <input name="expires" id="eExpires" type="date"></div>
+        <div class="fg"><label>Max Students</label>
+          <input name="max_students" id="eMax" type="number" min="1" max="9999"></div>
+        <div class="fg"><label>Current Term</label>
+          <select name="current_term" id="eTerm">
+            <option value="1">Term 1</option>
+            <option value="2">Term 2</option>
+            <option value="3">Term 3</option>
+          </select>
+        </div>
+        <div class="fg"><label>Academic Year</label>
+          <input name="current_year" id="eYear" placeholder="2025/2026"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button type="submit" class="btn btn-p" style="flex:1">💾 Save Changes</button>
+        <button type="button" class="btn btn-o" onclick="closeEdit()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Expand school row ─────────────────────────────────────────────────────── */
+var _loaded = {};
+function toggleExpand(sid){
+  var tr = document.getElementById('expand-'+sid);
+  var shown = tr.style.display !== 'none';
+  tr.style.display = shown ? 'none' : '';
+  if(!shown && !_loaded[sid]){
+    _loaded[sid] = true;
+    fetch('/platform/schools/'+sid+'/stats')
+    .then(r=>r.json()).then(function(d){
+      var box = document.getElementById('sch-stats-'+sid);
+      var cards = box.querySelectorAll('.ss-card');
+      var vals = [
+        [d.students, '👨‍🎓 Students'],
+        [d.teachers, '👩‍🏫 Teachers'],
+        [d.reports,  '📧 Reports'],
+        ['GH₵'+parseFloat(d.fees_paid||0).toFixed(0), '💰 Fees Collected'],
+      ];
+      vals.forEach(function(v,i){
+        cards[i].querySelector('.ss-num').textContent = v[0];
+        cards[i].querySelector('.ss-lbl').textContent = v[1];
+      });
+    }).catch(function(){});
+  }
+}
+
+/* ── Edit school ───────────────────────────────────────────────────────────── */
+function openEdit(sid, s){
+  document.getElementById('editForm').action = '/platform/schools/'+sid+'/edit';
+  document.getElementById('eName').value    = s.name || '';
+  document.getElementById('eShort').value   = s.short_name || '';
+  document.getElementById('ePhone').value   = s.phone || '';
+  document.getElementById('eEmail').value   = s.email || '';
+  document.getElementById('eAddr').value    = s.address || '';
+  document.getElementById('eMotto').value   = s.motto || '';
+  document.getElementById('ePlan').value    = s.subscription_plan || 'basic';
+  document.getElementById('eStatus').value  = s.subscription_status || 'active';
+  document.getElementById('eExpires').value = (s.subscription_expires||'').split('T')[0].slice(0,10);
+  document.getElementById('eMax').value     = s.max_students || 200;
+  document.getElementById('eTerm').value    = s.current_term || 1;
+  document.getElementById('eYear').value    = s.current_year || '2025/2026';
+  document.getElementById('editOverlay').classList.add('show');
+}
+function closeEdit(){
+  document.getElementById('editOverlay').classList.remove('show');
+}
+document.getElementById('editOverlay').addEventListener('click',function(e){
+  if(e.target===this) closeEdit();
+});
+</script>
+{% endblock %}

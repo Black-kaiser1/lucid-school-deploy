@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% block title %}Register History{% endblock %}
+{% block page_title %}📅 Attendance History{% endblock %}
+
+{% block extra_css %}
+<style>
+.rh-grid{display:grid;grid-template-columns:280px 1fr;gap:14px}
+@media(max-width:640px){.rh-grid{grid-template-columns:1fr}}
+
+.date-list{background:#fff;border-radius:12px;border:1.5px solid #e8f5e9;overflow:hidden}
+.date-item{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;
+  border-bottom:1px solid #f0f4f2;transition:.12s}
+.date-item:last-child{border-bottom:none}
+.date-item:hover{background:#f8fff9}
+.date-item.active{background:#f0fdf4;border-left:3px solid var(--p)}
+.di-date{font-weight:700;font-size:13px;color:var(--p)}
+.di-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.di-mini{margin-left:auto;display:flex;gap:6px;font-size:11px;font-weight:700;flex-shrink:0}
+.di-p{color:#1B5E20} .di-a{color:var(--red)}
+
+/* Day detail panel */
+.day-detail{background:#fff;border-radius:12px;border:1.5px solid #e8f5e9;
+  padding:16px;display:none}
+.day-detail.show{display:block}
+.day-loading{text-align:center;padding:30px;color:var(--muted)}
+.dd-stu-row{display:flex;align-items:center;gap:10px;padding:8px 0;
+  border-bottom:1px solid #f5f5f5;font-size:13px}
+.dd-stu-row:last-child{border-bottom:none}
+.dd-name{flex:1}
+.dd-badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.dd-p{background:#DCEDC8;color:#1B5E20}
+.dd-a{background:#FFCDD2;color:var(--red)}
+.dd-l{background:#FFF9C4;color:#5D4037}
+.dd-e{background:#E3F2FD;color:#1565C0}
+.dd-note{font-size:11px;color:var(--muted);margin-top:2px;font-style:italic}
+
+/* Student summary table */
+.stu-summary{margin-top:14px}
+.ss-row{display:grid;grid-template-columns:1fr 50px 50px 50px 50px 70px;gap:6px;
+  align-items:center;padding:9px 10px;border-bottom:1px solid #f0f4f2;font-size:12.5px}
+.ss-row:last-child{border-bottom:none}
+.ss-head{background:var(--light);border-radius:8px;font-size:11px;font-weight:700;
+  color:var(--p);text-transform:uppercase;letter-spacing:.4px}
+.att-bar-wrap{width:60px;background:#e8f5e9;border-radius:4px;height:7px;overflow:hidden}
+.att-bar{height:100%;border-radius:4px;background:#22C55E}
+
+/* Sync button */
+.sync-btn{background:#1565C0;color:#fff;border:none;border-radius:8px;
+  padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+.sync-btn:active{transform:scale(.96)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter bar -->
+<div class="fbar" style="margin-bottom:12px">
+  <form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1">
+    <select name="class_id" onchange="this.form.submit()">
+      <option value="">Select Class…</option>
+      {% for c in classes %}
+      <option value="{{ c.id }}" {% if class_id and class_id==c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}
+      <option value="{{ t }}" {% if term==t %}selected{% endif %}>Term {{ t }}</option>
+      {% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2024/2025'] %}
+      <option value="{{ yr }}" {% if year==yr %}selected{% endif %}>{{ yr }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% if class_id %}
+  <button class="sync-btn" onclick="syncSummary()" title="Re-sync term totals from daily register">
+    🔄 Sync to Report Cards
+  </button>
+  {% endif %}
+</div>
+
+{% if not class_id %}
+<div class="card" style="text-align:center;padding:32px;color:var(--muted)">
+  <div style="font-size:36px;margin-bottom:8px">📅</div>
+  Select a class above to view the register history.
+</div>
+
+{% elif not dates %}
+<div class="card" style="text-align:center;padding:32px;color:var(--muted)">
+  No register entries for
+  {% if cls %}{{ cls.name }}{% endif %}, Term {{ term }}, {{ year }}.
+  <br><br>
+  <a href="{{ url_for('register_home') }}" class="btn btn-p">📋 Take Register</a>
+</div>
+
+{% else %}
+
+<div class="rh-grid">
+
+  <!-- Date list (left column / top on mobile) -->
+  <div>
+    <div style="font-size:12px;font-weight:700;color:var(--p);margin-bottom:8px;padding-left:2px">
+      {{ dates|length }} register{{ 's' if dates|length != 1 else '' }} recorded
+    </div>
+    <div class="date-list">
+    {% for d in dates %}
+    <div class="date-item" id="di-{{ loop.index }}"
+         onclick="loadDay('{{ d.date }}', {{ loop.index }})">
+      <div>
+        <div class="di-date">{{ d.date }}</div>
+        <div class="di-sub">{{ d.total }} students</div>
+      </div>
+      <div class="di-mini">
+        <span class="di-p">✅ {{ d.present }}</span>
+        <span class="di-a">❌ {{ d.absent }}</span>
+        {% if d.late > 0 %}<span style="color:#E65100">⏰ {{ d.late }}</span>{% endif %}
+      </div>
+      <span style="color:var(--muted)">›</span>
+    </div>
+    {% endfor %}
+    </div>
+  </div>
+
+  <!-- Day detail (right column / below on mobile) -->
+  <div class="day-detail" id="dayDetail">
+    <div class="day-loading" id="dayLoading">Click a date to view details</div>
+    <div id="dayContent"></div>
+    <div id="dayActions" style="margin-top:12px;display:none">
+      <a id="editLink" href="#" class="btn btn-o btn-sm">✏️ Edit Register</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- Student summary table -->
+{% if student_summary %}
+<div class="card" style="margin-top:14px">
+  <div class="card-title">
+    👨‍🎓 Student Attendance Summary
+    {% if cls %} — {{ cls.name }}{% endif %}
+    · Term {{ term }}, {{ year }}
+  </div>
+
+  <div style="overflow-x:auto">
+  <div style="min-width:420px">
+    <div class="ss-row ss-head">
+      <span>Student</span>
+      <span style="text-align:center">Present</span>
+      <span style="text-align:center">Absent</span>
+      <span style="text-align:center">Late</span>
+      <span style="text-align:center">Total</span>
+      <span style="text-align:center">Rate</span>
+    </div>
+    {% for s in student_summary %}
+    {% set rate = ((s.present + s.late) / s.total_days * 100)|round|int if s.total_days else 0 %}
+    <div class="ss-row">
+      <div>
+        <div style="font-weight:600">{{ s.name }}</div>
+        <div style="font-size:10.5px;color:var(--muted)">{{ s.sid }}</div>
+      </div>
+      <div style="text-align:center;font-weight:700;color:#1B5E20">{{ s.present }}</div>
+      <div style="text-align:center;font-weight:700;color:{% if s.absent > 0 %}var(--red){% else %}var(--muted){% endif %}">
+        {{ s.absent }}
+      </div>
+      <div style="text-align:center;font-weight:700;color:{% if s.late > 0 %}#E65100{% else %}var(--muted){% endif %}">
+        {{ s.late }}
+      </div>
+      <div style="text-align:center;color:var(--muted)">{{ s.total_days }}</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div class="att-bar-wrap">
+            <div class="att-bar"
+                 style="width:{{ rate }}%;background:{% if rate>=80 %}#22C55E{% elif rate>=60 %}#F9A825{% else %}var(--red){% endif %}">
+            </div>
+          </div>
+          <span style="font-size:11.5px;font-weight:700;color:{% if rate>=80 %}#1B5E20{% elif rate>=60 %}#E65100{% else %}var(--red){% endif %}">
+            {{ rate }}%
+          </span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var CLASS_ID = {{ class_id or 0 }};
+var CUR_TERM = {{ term }};
+var CUR_YEAR = {{ year|tojson }};
+var activeIdx = null;
+
+function loadDay(date, idx){
+  // Highlight active
+  if(activeIdx) document.getElementById('di-'+activeIdx).classList.remove('active');
+  activeIdx = idx;
+  document.getElementById('di-'+idx).classList.add('active');
+
+  var detail = document.getElementById('dayDetail');
+  var content = document.getElementById('dayContent');
+  var loading = document.getElementById('dayLoading');
+  var actions = document.getElementById('dayActions');
+
+  detail.classList.add('show');
+  loading.style.display = 'block';
+  content.innerHTML = '';
+  actions.style.display = 'none';
+
+  fetch('/school/register/day?class_id='+CLASS_ID+'&date='+date)
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    loading.style.display = 'none';
+    var html = '<div style="font-weight:700;color:var(--p);font-size:14px;margin-bottom:12px">📋 '+date+'</div>';
+    if(!data.length){
+      html += '<div style="color:var(--muted);text-align:center;padding:16px">No data found.</div>';
+    } else {
+      data.forEach(function(s){
+        var badgeClass = {present:'dd-p',absent:'dd-a',late:'dd-l',excused:'dd-e'}[s.status]||'dd-p';
+        html += '<div class="dd-stu-row"><div class="dd-name"><div>'+s.name+'</div>';
+        if(s.note) html += '<div class="dd-note">'+s.note+'</div>';
+        html += '</div><span class="dd-badge '+badgeClass+'">'+s.status.toUpperCase()+'</span></div>';
+      });
+    }
+    content.innerHTML = html;
+    // Edit link
+    document.getElementById('editLink').href =
+      '/school/register/take?class_id='+CLASS_ID+'&date='+date;
+    actions.style.display = 'block';
+  })
+  .catch(function(){ loading.textContent = 'Failed to load. Try again.'; });
+}
+
+function syncSummary(){
+  var btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ Syncing…';
+  fetch('/school/register/sync', {
+    method: 'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({class_id:CLASS_ID, term:CUR_TERM, academic_year:CUR_YEAR})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    btn.disabled = false;
+    if(d.status==='ok'){
+      btn.textContent = '✅ Synced!';
+      setTimeout(function(){ btn.textContent='🔄 Sync to Report Cards'; }, 2000);
+      alert('✅ Attendance synced for '+d.synced_students+' students.\nReport cards will now show updated days present/absent.');
+    } else {
+      btn.textContent = '🔄 Sync to Report Cards';
+      alert('Error: '+d.message);
+    }
+  })
+  .catch(function(e){ btn.disabled=false; btn.textContent='🔄 Sync'; alert(e.message); });
+}
+
+// Auto-load first date on desktop
+if(window.innerWidth >= 640){
+  var first = document.querySelector('.date-item');
+  if(first) first.click();
+}
+</script>
+{% endblock %}

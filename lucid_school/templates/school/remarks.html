@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Remarks{% endblock %}
+{% block page_title %}💬 Remarks & Attendance{% endblock %}
+{% block content %}
+<div class="fbar">
+  <form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <select name="class_id" onchange="this.form.submit()">
+      <option value="">All Classes</option>
+      {% for cls in classes %}
+      <option value="{{ cls.id }}" {% if class_filter|string==cls.id|string %}selected{% endif %}>{{ cls.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}<option value="{{ t }}" {% if term==t %}selected{% endif %}>Term {{ t }}</option>{% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2024/2025','2023/2024'] %}
+      <option value="{{ yr }}" {% if academic_year==yr %}selected{% endif %}>{{ yr }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% for s in students %}
+<div class="card">
+  <div class="card-title">
+    👤 {{ s.first_name }} {{ s.last_name }}
+    <span class="badge bb">{{ s.class_name }}</span>
+    <span class="badge bk" style="margin-left:auto">{{ s.student_id }}</span>
+  </div>
+  <form method="post" action="{{ url_for('save_remarks') }}">
+    <input type="hidden" name="student_id" value="{{ s.id }}">
+    <input type="hidden" name="term" value="{{ term }}">
+    <input type="hidden" name="academic_year" value="{{ academic_year }}">
+    <input type="hidden" name="class_filter" value="{{ class_filter }}">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr) repeat(3,1fr);gap:10px">
+      <div class="fg">
+        <label>Conduct</label>
+        <select name="conduct">
+          {% for c in ['Excellent','Very Good','Good','Fair','Poor'] %}
+          <option {% if s.conduct==c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg"><label>Days Present</label><input type="number" name="days_present" value="{{ s.days_present or 0 }}" min="0"></div>
+      <div class="fg"><label>Days Absent</label><input type="number" name="days_absent" value="{{ s.days_absent or 0 }}" min="0"></div>
+      <div class="fg"><label>Total School Days</label><input type="number" name="total_days" value="{{ s.total_days or 66 }}" min="0"></div>
+      <div class="fg"><label>Area of Interest</label><input name="interest" value="{{ s.interest or '' }}" placeholder="e.g. Science, Football"></div>
+      <div class="fg"><label>Next Term Begins</label><input name="next_term_begins" value="{{ s.next_term_begins or '' }}" placeholder="Monday, 14th April 2026"></div>
+      <div class="fg" style="grid-column:1/4">
+        <label>Class Teacher's Remark</label>
+        <textarea name="class_teacher_remark" rows="2" placeholder="Write remark...">{{ s.class_teacher_remark or '' }}</textarea>
+      </div>
+      <div class="fg" style="grid-column:4/7">
+        <label>Head Teacher's Remark</label>
+        <textarea name="head_teacher_remark" rows="2" placeholder="Head teacher comment...">{{ s.head_teacher_remark or '' }}</textarea>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-p btn-sm" style="margin-top:8px">💾 Save</button>
+  </form>
+</div>
+{% else %}
+<div class="card"><p style="text-align:center;color:var(--muted);padding:24px">Select a class to view students.</p></div>
+{% endfor %}
+{% endblock %}

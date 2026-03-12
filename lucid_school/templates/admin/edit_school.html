@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Edit School{% endblock %}
+{% block page_title %}✏️ Edit School — {{ school.name }}{% endblock %}
+{% block content %}
+<div class="card" style="max-width:620px">
+  <div class="card-title">🏫 School Details</div>
+  <form method="post">
+    <div class="grid-2">
+      <div class="fg"><label>School Name *</label>
+        <input name="name" value="{{ school.name }}" required></div>
+      <div class="fg"><label>Short Name *</label>
+        <input name="short_name" value="{{ school.short_name }}" required maxlength="10"></div>
+      <div class="fg"><label>Phone</label>
+        <input name="phone" value="{{ school.phone or '' }}"></div>
+      <div class="fg"><label>Email</label>
+        <input name="email" type="email" value="{{ school.email or '' }}"></div>
+      <div class="fg" style="grid-column:1/-1"><label>Address</label>
+        <input name="address" value="{{ school.address or '' }}"></div>
+      <div class="fg" style="grid-column:1/-1"><label>Motto</label>
+        <input name="motto" value="{{ school.motto or '' }}"></div>
+    </div>
+
+    <hr style="margin:16px 0;border-color:#e2e8f0">
+    <div class="card-title" style="margin-bottom:12px">💳 Subscription & Access</div>
+    <div class="grid-2">
+      <div class="fg"><label>Plan</label>
+        <select name="plan">
+          {% for p in ['basic','pro','enterprise'] %}
+          <option value="{{ p }}" {% if school.subscription_plan==p %}selected{% endif %}>{{ p|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg"><label>Status</label>
+        <select name="status">
+          {% for s in ['active','suspended','expired'] %}
+          <option value="{{ s }}" {% if school.subscription_status==s %}selected{% endif %}>{{ s|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg"><label>Subscription Expires</label>
+        <input name="expires" type="date"
+               value="{{ school.subscription_expires[:10] if school.subscription_expires else '' }}">
+      </div>
+      <div class="fg"><label>Max Students</label>
+        <input name="max_students" type="number" value="{{ school.max_students or 200 }}" min="1" max="9999">
+      </div>
+    </div>
+
+    <hr style="margin:16px 0;border-color:#e2e8f0">
+    <div class="card-title" style="margin-bottom:12px">📅 Current Term</div>
+    <div class="grid-2">
+      <div class="fg"><label>Current Term</label>
+        <select name="current_term">
+          {% for t in [1,2,3] %}
+          <option value="{{ t }}" {% if school.current_term==t %}selected{% endif %}>Term {{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg"><label>Academic Year</label>
+        <input name="current_year" value="{{ school.current_year or '2025/2026' }}" placeholder="2025/2026">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button type="submit" class="btn btn-p">💾 Save Changes</button>
+      <a href="{{ url_for('platform_dashboard') }}" class="btn btn-o">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

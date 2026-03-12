@@ -1,0 +1,327 @@
+# 🚀 LUCID SCHOOL — Complete Hosting + APK Guide
+# From zero to live URL + Android APK
+
+================================================================
+## PART 1: HOST THE APP FOR FREE ON RENDER.COM
+## Total time: ~30 minutes
+================================================================
+
+## STEP 1 — Create a GitHub Account (if you don't have one)
+────────────────────────────────────────────────────────────
+1. Go to https://github.com
+2. Click "Sign up"
+3. Use your email, create username + password
+4. Verify your email
+
+
+## STEP 2 — Install Git on your Windows PC
+────────────────────────────────────────────────────────────
+1. Go to https://git-scm.com/download/win
+2. Download the installer → run it → click Next on everything
+3. Open VSCode → Terminal → New Terminal
+4. Type: git --version
+   ✅ Should show: git version 2.x.x
+
+
+## STEP 3 — Set up Git with your name
+────────────────────────────────────────────────────────────
+In the VSCode terminal, run these two lines:
+
+    git config --global user.name "Your Name"
+    git config --global user.email "youremail@gmail.com"
+
+
+## STEP 4 — Create a new GitHub repo
+────────────────────────────────────────────────────────────
+1. Go to https://github.com
+2. Click the green "New" button (top left)
+3. Repository name: lucid-school
+4. Set to: Public
+5. Do NOT tick "Add README" or any other options
+6. Click "Create repository"
+7. Copy the URL shown — it looks like:
+   https://github.com/YOURUSERNAME/lucid-school.git
+
+
+## STEP 5 — Push your code to GitHub
+────────────────────────────────────────────────────────────
+1. Open this project folder in VSCode
+   File → Open Folder → select the lucid_school folder
+
+2. Open the terminal (Ctrl + `) and run these commands
+   one line at a time:
+
+    git init
+    git add .
+    git commit -m "Initial deployment - Lucid School v5"
+    git branch -M main
+    git remote add origin https://github.com/YOURUSERNAME/lucid-school.git
+    git push -u origin main
+
+3. Go to your GitHub repo page and refresh
+   ✅ You should see all your files uploaded
+
+
+## STEP 6 — Create a free Render account
+────────────────────────────────────────────────────────────
+1. Go to https://render.com
+2. Click "Get Started for Free"
+3. Sign up with GitHub (easiest option — click "Sign up with GitHub")
+4. Authorize Render to access your GitHub
+
+
+## STEP 7 — Create a new Web Service on Render
+────────────────────────────────────────────────────────────
+1. On Render dashboard, click "New +" → "Web Service"
+2. Click "Connect" next to your lucid-school repository
+3. Fill in the settings:
+
+   Name:           lucid-school
+   Region:         Frankfurt (EU Central) ← best for Ghana
+   Branch:         main
+   Root Directory: (leave empty)
+   Runtime:        Python 3
+   Build Command:  pip install -r requirements.txt && python database.py
+   Start Command:  gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+
+4. Scroll down to "Environment Variables"
+   Click "Add Environment Variable":
+   Key:   SECRET_KEY
+   Value: (click "Generate" button — it creates a random key)
+
+5. Scroll down, select "Free" plan
+
+6. Click "Create Web Service"
+
+Render will now:
+  ➡ Download your code from GitHub
+  ➡ Install Python packages
+  ➡ Initialise the database
+  ➡ Start the app
+
+This takes 3-5 minutes. Watch the logs at the bottom.
+
+
+## STEP 8 — Get your live URL
+────────────────────────────────────────────────────────────
+When the logs show "Listening on 0.0.0.0:10000":
+
+Your URL will be at the top of the page:
+   https://lucid-school-xxxx.onrender.com
+
+🎉 YOUR APP IS LIVE!
+
+Test it:
+  Web:     https://lucid-school-xxxx.onrender.com/login
+  Admin:   username: superadmin  |  password: admin123
+  School:  username: schooladmin |  password: school123
+
+
+## STEP 9 — Stop the app sleeping (IMPORTANT)
+────────────────────────────────────────────────────────────
+Free Render apps sleep after 15 minutes of no traffic.
+Set up a free ping to keep it awake 24/7.
+
+1. Go to https://uptimerobot.com
+2. Sign up free
+3. Click "Add New Monitor"
+4. Monitor Type: HTTP(s)
+5. Friendly Name: Lucid School
+6. URL: https://lucid-school-xxxx.onrender.com/health
+7. Monitoring Interval: every 5 minutes
+8. Click "Create Monitor"
+
+✅ Your app now stays awake 24/7 for free.
+
+
+## STEP 10 — Update the app URL in your APK config
+────────────────────────────────────────────────────────────
+Now you have your real URL. Update the config files:
+
+1. Open a terminal in your project folder
+2. Run:
+   node update_url.js https://lucid-school-xxxx.onrender.com
+
+   (Replace xxxx with your actual URL from Render)
+
+✅ This updates both capacitor.config.json and web/index.html
+
+
+================================================================
+## PART 2: BUILD THE ANDROID APK
+## Total time: ~45 minutes (includes install time)
+================================================================
+
+
+## STEP 11 — Install Node.js
+────────────────────────────────────────────────────────────
+1. Go to https://nodejs.org
+2. Download the "LTS" version (left button)
+3. Run the installer → click Next on everything
+4. Restart VSCode after installing
+
+5. Test in VSCode terminal:
+   node --version   ← should show v20.x.x
+   npm --version    ← should show 10.x.x
+
+
+## STEP 12 — Install Android Studio
+────────────────────────────────────────────────────────────
+1. Go to https://developer.android.com/studio
+2. Click "Download Android Studio"
+3. Run the installer → follow all steps
+   ⚠️ This is a large download (~1GB) — takes time
+4. Launch Android Studio
+5. It will prompt to "Install Android SDK" → click OK
+6. Let it download everything (takes 10-15 min)
+7. Once done, close Android Studio for now
+
+
+## STEP 13 — Set ANDROID_HOME environment variable
+────────────────────────────────────────────────────────────
+1. Press Windows key → search "Environment Variables"
+2. Click "Edit the system environment variables"
+3. Click "Environment Variables" button
+4. Under "User variables", click "New":
+   Variable name:  ANDROID_HOME
+   Variable value: C:\Users\YOURNAME\AppData\Local\Android\Sdk
+
+   (Replace YOURNAME with your Windows username)
+
+5. Find the "Path" variable → click Edit → click New
+   Add: C:\Users\YOURNAME\AppData\Local\Android\Sdk\platform-tools
+
+6. Click OK on everything
+7. RESTART VSCode for changes to take effect
+
+
+## STEP 14 — Install Capacitor
+────────────────────────────────────────────────────────────
+In VSCode terminal (in your project folder):
+
+    npm install
+
+This installs all the packages listed in package.json.
+Wait for it to finish (1-2 minutes).
+
+
+## STEP 15 — Add Android platform
+────────────────────────────────────────────────────────────
+    npx cap add android
+    npx cap sync android
+
+This creates an android/ folder with a complete Android project.
+
+
+## STEP 16 — Open in Android Studio and build APK
+────────────────────────────────────────────────────────────
+    npx cap open android
+
+Android Studio will open with your project.
+
+Wait for it to finish "Gradle sync" (bottom bar shows progress).
+This takes 2-5 minutes the first time.
+
+Then:
+1. Menu: Build → Build Bundle(s)/APK(s) → Build APK(s)
+2. Wait for build to complete (1-2 min)
+3. A notification appears: "Build successful"
+4. Click "locate" in the notification
+
+Your APK is at:
+  android/app/build/outputs/apk/debug/app-debug.apk
+
+That file is your Android app!
+
+
+## STEP 17 — Test on your Android phone
+────────────────────────────────────────────────────────────
+Option A — Direct install via USB:
+1. On your phone: Settings → About Phone → tap "Build Number" 7 times
+   (enables Developer Mode)
+2. Settings → Developer Options → enable "USB Debugging"
+3. Connect phone to PC via USB
+4. In Android Studio: Run → Run 'app' → select your phone
+5. App installs and opens on your phone
+
+Option B — Transfer the APK file:
+1. Copy the .apk file to your phone (WhatsApp it to yourself,
+   or use a USB cable, or Google Drive)
+2. On your phone, open the file
+3. If prompted: Settings → Allow installs from this source → OK
+4. Install → Open
+
+✅ Lucid School is now on your Android phone!
+
+
+================================================================
+## PART 3: KEEPING EVERYTHING UPDATED
+================================================================
+
+## When you update your Flask code:
+────────────────────────────────────────────────────────────
+1. Make your changes in VSCode
+2. Push to GitHub:
+   git add .
+   git commit -m "describe what you changed"
+   git push
+
+3. Render auto-deploys within 2-3 minutes
+4. No need to rebuild the APK — it loads the latest version
+   automatically since the APK just points to your live URL
+
+
+## When you want to update the APK itself:
+────────────────────────────────────────────────────────────
+Only needed if you change capacitor.config.json or the splash screen.
+
+    npx cap sync android
+    npx cap open android
+    Build → Build APK
+
+
+================================================================
+## QUICK REFERENCE
+================================================================
+
+Your URLs after deployment:
+  Staff/Admin login:  https://your-app.onrender.com/login
+  Parent portal:      https://your-app.onrender.com/parent/login
+  Health check:       https://your-app.onrender.com/health
+
+Default logins:
+  Platform admin:  superadmin  /  admin123
+  School admin:    schooladmin /  school123
+
+CHANGE THESE PASSWORDS before sharing with anyone!
+Go to the app → top right → Change Password
+
+APK location after build:
+  android/app/build/outputs/apk/debug/app-debug.apk
+
+================================================================
+## TROUBLESHOOTING
+================================================================
+
+Problem: Render build fails
+Fix: Check the logs — usually a missing package in requirements.txt
+     or a syntax error in your Python files
+
+Problem: App shows "Service Unavailable"
+Fix: Wait 30 seconds — free tier is waking up
+     Check UptimeRobot is pinging /health every 5 minutes
+
+Problem: Android Studio says "SDK not found"
+Fix: Make sure ANDROID_HOME environment variable is set correctly
+     Restart VSCode after setting it
+
+Problem: APK installs but shows blank screen
+Fix: Make sure your Render URL is correct in capacitor.config.json
+     Run: node update_url.js https://your-actual-url.onrender.com
+     Then: npx cap sync android → rebuild APK
+
+Problem: "git push" asks for password
+Fix: Use a GitHub Personal Access Token instead of password
+     GitHub.com → Settings → Developer Settings → Personal Access Tokens
+     → Generate new token (classic) → tick "repo" → copy token
+     Use this token as your password when git asks

@@ -1,0 +1,542 @@
+{% extends 'base.html' %}
+{% block title %}{{ student.first_name }} {{ student.last_name }} — Profile{% endblock %}
+{% block page_title %}👤 Student Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ─────────────────────────────────────────── */
+.profile-layout { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+
+/* ── Identity card ──────────────────────────────────── */
+.id-card {
+  background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  position: sticky; top: 16px;
+}
+.id-card-header {
+  background: linear-gradient(135deg, var(--p), #0a2818);
+  padding: 22px 18px 48px; text-align: center; position: relative;
+}
+.id-card-header .school-badge {
+  font-size: 10px; color: var(--s); font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px;
+}
+.photo-ring {
+  width: 90px; height: 90px; border-radius: 50%;
+  border: 3px solid var(--s);
+  margin: 0 auto;
+  background: #e8eaf6; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+}
+.photo-ring img { width: 100%; height: 100%; object-fit: cover; }
+.id-badge {
+  position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
+  background: var(--s); color: var(--p); font-weight: 700;
+  font-size: 11.5px; padding: 4px 14px; border-radius: 20px;
+  white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.id-card-body { padding: 28px 16px 16px; }
+.id-name {
+  text-align: center; font-size: 16px; font-weight: 700;
+  color: var(--dark); margin-bottom: 2px;
+}
+.id-class {
+  text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 14px;
+}
+.id-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid #f5f5f5; font-size: 12px;
+}
+.id-row:last-child { border-bottom: none; }
+.id-row .lbl { color: var(--muted); }
+.id-row .val { font-weight: 600; text-align: right; max-width: 60%; }
+
+/* ── Stat tiles ─────────────────────────────────────── */
+.stat-tiles { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+.stile {
+  background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 10px; padding: 14px 12px;
+  text-align: center;
+}
+.stile .stile-val { font-size: 22px; font-weight: 700; color: var(--p); line-height: 1; }
+.stile .stile-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.stile .stile-bar { height: 3px; border-radius: 2px; background: var(--s); margin: 8px 0 0; }
+
+/* ── Term card ──────────────────────────────────────── */
+.term-card {
+  background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 12px; margin-bottom: 14px; overflow: hidden;
+}
+.term-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; background: var(--light);
+  border-bottom: 1px solid #e2e8f0; cursor: pointer;
+}
+.term-header:hover { background: #e6f4ec; }
+.term-title { font-weight: 700; font-size: 13.5px; color: var(--p); flex: 1; }
+.term-body { padding: 16px; }
+
+/* ── Scores mini-table ──────────────────────────────── */
+.score-grid { display: grid; grid-template-columns: 1fr 60px 60px 70px 60px; gap: 0; font-size: 12px; }
+.sg-head { background: var(--p); color: #fff; padding: 6px 8px; font-size: 10.5px; font-weight: 600; }
+.sg-head:first-child, .sg-row .sn { font-size: 12px; }
+.sg-row { display: contents; }
+.sg-row > div {
+  padding: 7px 8px; border-bottom: 1px solid #f5f5f5;
+  display: flex; align-items: center;
+}
+.sg-row:hover > div { background: #f8fff9; }
+.grade-pill {
+  display: inline-block; padding: 1px 7px; border-radius: 10px;
+  font-size: 10px; font-weight: 700;
+}
+
+/* ── Performance radar (CSS only) ──────────────────── */
+.perf-bar-wrap { margin-bottom: 8px; }
+.perf-bar-label { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 2px; }
+.perf-track { background: #e8f5e9; border-radius: 4px; height: 9px; overflow: hidden; }
+.perf-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+
+/* ── Section headers ────────────────────────────────── */
+.section-title {
+  font-size: 12.5px; font-weight: 700; color: var(--p);
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 12px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--mint);
+}
+
+/* ── Conduct badge ──────────────────────────────────── */
+.conduct-badge {
+  display: inline-block; padding: 4px 12px; border-radius: 20px;
+  font-size: 11.5px; font-weight: 700;
+}
+.c-excellent { background: #DCEDC8; color: #1B5E20; }
+.c-verygood  { background: #C8E6C9; color: #2E7D32; }
+.c-good      { background: #E3F2FD; color: #1565C0; }
+.c-fair      { background: #FFF3E0; color: #E65100; }
+.c-poor      { background: #FFCDD2; color: #B71C1C; }
+
+/* ── Timeline dot ───────────────────────────────────── */
+.comm-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f5f5f5; font-size: 12px; }
+.comm-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set grade_colors = {
+  'A1': ('#1B5E20','#DCEDC8'), 'B2': ('#1B5E20','#C8E6C9'), 'B3': ('#2E7D32','#E8F5E9'),
+  'C4': ('#1565C0','#E3F2FD'), 'C5': ('#1565C0','#E8F0FE'), 'C6': ('#1565C0','#EDE7F6'),
+  'D7': ('#E65100','#FFF3E0'), 'E8': ('#BF360C','#FBE9E7'), 'F9': ('#B71C1C','#FFCDD2')
+} %}
+{% set agg_colors = {
+  'DISTINCTION': ('#1B5E20','#DCEDC8'),
+  'CREDIT':      ('#1565C0','#E3F2FD'),
+  'PASS':        ('#E65100','#FFF3E0'),
+  'FAIL':        ('#B71C1C','#FFCDD2')
+} %}
+
+<!-- Breadcrumb -->
+<div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+  <a href="{{ url_for('students') }}" style="color:var(--p)">← All Students</a>
+  &nbsp;/&nbsp; {{ student.first_name }} {{ student.last_name }}
+</div>
+
+<div class="profile-layout">
+
+  <!-- ── LEFT: Identity Card ─────────────────────────────────────── -->
+  <div>
+    <div class="id-card">
+      <div class="id-card-header">
+        <div class="school-badge">{{ school.short_name or school.name }}</div>
+        <div class="photo-ring">
+          {% if student.photo_path %}
+          <img src="/uploads/photos/{{ student.photo_path }}"
+               onerror="this.parentNode.innerHTML='{{ '👦' if student.gender=='Male' else '👧' if student.gender=='Female' else '👤' }}'">
+          {% else %}
+          {{ '👦' if student.gender=='Male' else '👧' if student.gender=='Female' else '👤' }}
+          {% endif %}
+        </div>
+        <div class="id-badge">{{ student.student_id }}</div>
+      </div>
+
+      <div class="id-card-body">
+        <div class="id-name">{{ student.first_name }} {{ student.last_name }}</div>
+        <div class="id-class">
+          <span class="badge bb">{{ student.class_name or '—' }}</span>
+          {% if student.class_level %}<span class="badge bk" style="margin-left:4px">{{ student.class_level }}</span>{% endif %}
+        </div>
+
+        <div class="id-row"><span class="lbl">Student ID</span><span class="val">{{ student.student_id }}</span></div>
+        <div class="id-row"><span class="lbl">Gender</span><span class="val">{{ student.gender or '—' }}</span></div>
+        <div class="id-row">
+          <span class="lbl">Date of Birth</span>
+          <span class="val">{{ student.date_of_birth or '—' }}</span>
+        </div>
+        {% if student.address %}
+        <div class="id-row"><span class="lbl">Address</span><span class="val">{{ student.address }}</span></div>
+        {% endif %}
+        <div class="id-row"><span class="lbl">Enrolled</span><span class="val" style="font-size:11px">{{ student.created_at[:10] if student.created_at else '—' }}</span></div>
+
+        <hr style="margin:12px 0;border-color:#f0f4f2">
+        <div class="section-title" style="border:none;margin-bottom:8px;padding:0">👪 Parent / Guardian</div>
+        <div class="id-row"><span class="lbl">Name</span><span class="val">{{ student.parent_name or '—' }}</span></div>
+        <div class="id-row"><span class="lbl">Phone</span><span class="val">{{ student.parent_phone or '—' }}</span></div>
+        <div class="id-row">
+          <span class="lbl">Email</span>
+          <span class="val" style="font-size:10.5px">
+            {% if student.parent_email %}
+            <a href="mailto:{{ student.parent_email }}" style="color:var(--p)">{{ student.parent_email }}</a>
+            {% else %}❌ None{% endif %}
+          </span>
+        </div>
+        {% if student.parent_whatsapp %}
+        <div class="id-row"><span class="lbl">WhatsApp</span><span class="val">{{ student.parent_whatsapp }}</span></div>
+        {% endif %}
+
+        <hr style="margin:12px 0;border-color:#f0f4f2">
+        <div class="section-title" style="border:none;margin-bottom:8px;padding:0">💰 Fee Summary</div>
+        {% set total_due  = fee_summary.total_due or 0 %}
+        {% set total_paid = fee_summary.total_paid or 0 %}
+        {% set balance    = total_due - total_paid %}
+        <div class="id-row"><span class="lbl">Total Due</span><span class="val">GH₵{{ "%.2f"|format(total_due) }}</span></div>
+        <div class="id-row"><span class="lbl">Total Paid</span><span class="val" style="color:#22C55E">GH₵{{ "%.2f"|format(total_paid) }}</span></div>
+        <div class="id-row">
+          <span class="lbl">Balance</span>
+          <span class="val" style="color:{% if balance > 0 %}#B71C1C{% else %}#22C55E{% endif %}">
+            GH₵{{ "%.2f"|format(balance) }}
+          </span>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-top:14px">
+          <a href="{{ url_for('edit_student', sid=student.id) }}" class="btn btn-p btn-sm" style="flex:1;text-align:center">✏️ Edit</a>
+          <a href="{{ url_for('reports') }}?class_id={{ student.class_id }}" class="btn btn-s btn-sm" style="flex:1;text-align:center">📄 Report</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Academic History ─────────────────────────────────── -->
+  <div>
+
+    <!-- Summary tiles -->
+    <div class="stat-tiles">
+      <div class="stile">
+        <div class="stile-bar"></div>
+        <div class="stile-val">{{ term_data|length }}</div>
+        <div class="stile-lbl">Terms Recorded</div>
+      </div>
+      <div class="stile">
+        <div class="stile-bar" style="background:#1565C0"></div>
+        {% if term_data %}
+        <div class="stile-val">{{ "%.0f"|format(term_data[-1].total) }}</div>
+        <div class="stile-lbl">Latest Grand Total</div>
+        {% else %}
+        <div class="stile-val" style="font-size:16px">—</div>
+        <div class="stile-lbl">No scores yet</div>
+        {% endif %}
+      </div>
+      <div class="stile">
+        <div class="stile-bar" style="background:var(--s)"></div>
+        {% if best_agg %}
+        <div class="stile-val">{{ best_agg.agg }}</div>
+        <div class="stile-lbl">Best Aggregate</div>
+        {% else %}
+        <div class="stile-val" style="font-size:16px">—</div>
+        <div class="stile-lbl">Best Aggregate</div>
+        {% endif %}
+      </div>
+      <div class="stile">
+        <div class="stile-bar" style="background:{% if (fee_summary.total_due or 0) <= (fee_summary.total_paid or 0) %}#22C55E{% else %}#B71C1C{% endif %}"></div>
+        <div class="stile-val" style="font-size:17px;color:{% if (fee_summary.total_due or 0) <= (fee_summary.total_paid or 0) %}#22C55E{% else %}#B71C1C{% endif %}">
+          {% if (fee_summary.total_due or 0) <= (fee_summary.total_paid or 0) %}✅{% else %}⚠️{% endif %}
+        </div>
+        <div class="stile-lbl">Fee Status</div>
+      </div>
+    </div>
+
+    {% if not term_data %}
+    <!-- No data yet -->
+    <div class="card" style="text-align:center;padding:40px">
+      <div style="font-size:36px;margin-bottom:10px">📋</div>
+      <div style="font-size:14px;font-weight:600;color:var(--p);margin-bottom:6px">No academic records yet</div>
+      <div style="font-size:12px;color:var(--muted)">Scores, remarks and attendance will appear here once entered.</div>
+      <a href="{{ url_for('scores') }}?class_id={{ student.class_id }}" class="btn btn-p" style="margin-top:14px;display:inline-block">📝 Enter Scores</a>
+    </div>
+    {% endif %}
+
+    {% for td in term_data|reverse %}
+    <!-- ── Term Card ─────────────────────────────────────────────── -->
+    <div class="term-card">
+      <div class="term-header" onclick="toggleTerm({{ loop.index }})">
+        <div>
+          <span style="font-size:10px;background:var(--p);color:#fff;padding:2px 8px;border-radius:8px;margin-right:8px">
+            Term {{ td.term }}
+          </span>
+          <span style="font-size:10px;color:var(--muted)">{{ td.year }}</span>
+        </div>
+        <div class="term-title" style="margin-left:8px">
+          
+          {% set ac = agg_colors.get(td.agg_label, ('#333','#f5f5f5')) %}
+          {% if td.agg_label %}
+          <span class="grade-pill" style="color:{{ ac[0] }};background:{{ ac[1] }}">
+            {{ td.agg_label }}
+          </span>
+          {% endif %}
+        </div>
+        <!-- Quick stats -->
+        <div style="display:flex;gap:16px;font-size:12px">
+          <span><strong>{{ "%.0f"|format(td.total) }}</strong> <span style="color:var(--muted)">total</span></span>
+          {% if td.position %}<span><strong>{{ td.position }}{{ 'st' if td.position==1 else 'nd' if td.position==2 else 'rd' if td.position==3 else 'th' }}</strong> <span style="color:var(--muted)">/{{ td.total_in_class }}</span></span>{% endif %}
+          {% if td.aggregate %}<span><strong>Agg {{ td.aggregate }}</strong></span>{% endif %}
+        </div>
+        <span style="font-size:16px;transition:.2s" id="chevron-{{ loop.index }}">▼</span>
+      </div>
+
+      <div class="term-body" id="term-body-{{ loop.index }}" style="{% if not loop.first %}display:none{% endif %}">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+          <!-- Scores table -->
+          <div style="grid-column:1/-1">
+            <div class="section-title">📝 Subject Scores</div>
+            {% if td.scores %}
+            <!-- Performance bars -->
+            <div style="margin-bottom:14px">
+              {% for sc in td.scores %}
+              {% set g = sc.total %}
+              <div class="perf-bar-wrap">
+                <div class="perf-bar-label">
+                  <span>{{ sc.subject_name }}
+                    {% if sc.is_core %}<span style="font-size:9px;color:var(--muted)">(Core)</span>{% endif %}
+                  </span>
+                  <span style="font-weight:700;color:{% if g>=75 %}#1B5E20{% elif g>=50 %}#1565C0{% else %}#B71C1C{% endif %}">
+                    {{ "%.1f"|format(g) }}%
+                    &nbsp;
+                    {% set grade = 'A1' if g>=75 else 'B2' if g>=70 else 'B3' if g>=65 else 'C4' if g>=60 else 'C5' if g>=55 else 'C6' if g>=50 else 'D7' if g>=45 else 'E8' if g>=40 else 'F9' %}
+                    {% set gc = grade_colors.get(grade, ('#333','#f5f5f5')) %}
+                    <span class="grade-pill" style="color:{{ gc[0] }};background:{{ gc[1] }}">{{ grade }}</span>
+                  </span>
+                </div>
+                <div class="perf-track">
+                  <div class="perf-fill" style="width:{{ g }}%;background:{% if g>=75 %}#2D6A4F{% elif g>=50 %}#1565C0{% else %}#B71C1C{% endif %}"></div>
+                </div>
+                <div style="font-size:10px;color:var(--muted);margin-top:1px">
+                  CS: {{ sc.class_score }} / 40 &nbsp;·&nbsp; ES: {{ sc.exam_score }} / 60
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <!-- Scores table -->
+            <div style="overflow-x:auto;border-radius:8px;border:1px solid #e2e8f0">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead>
+                <tr style="background:var(--p);color:#fff">
+                  <th style="padding:7px 10px;text-align:left">Subject</th>
+                  <th style="padding:7px 8px;text-align:center">Class Score<br><span style="font-size:9px;opacity:.7">(max 40)</span></th>
+                  <th style="padding:7px 8px;text-align:center">Exam Score<br><span style="font-size:9px;opacity:.7">(max 60)</span></th>
+                  <th style="padding:7px 8px;text-align:center">Total</th>
+                  <th style="padding:7px 8px;text-align:center">Grade</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for sc in td.scores %}
+              {% set g = sc.total %}
+              {% set grade = 'A1' if g>=75 else 'B2' if g>=70 else 'B3' if g>=65 else 'C4' if g>=60 else 'C5' if g>=55 else 'C6' if g>=50 else 'D7' if g>=45 else 'E8' if g>=40 else 'F9' %}
+              {% set gc = grade_colors.get(grade, ('#333','#f5f5f5')) %}
+              <tr style="border-bottom:1px solid #f5f5f5">
+                <td style="padding:7px 10px;font-weight:{% if sc.is_core %}600{% else %}400{% endif %}">
+                  {{ sc.subject_name }}
+                  {% if not sc.is_core %}<span style="font-size:9px;color:var(--muted)">(Elective)</span>{% endif %}
+                </td>
+                <td style="padding:7px 8px;text-align:center">{{ sc.class_score }}</td>
+                <td style="padding:7px 8px;text-align:center">{{ sc.exam_score }}</td>
+                <td style="padding:7px 8px;text-align:center;font-weight:700;color:{% if g>=75 %}#1B5E20{% elif g>=50 %}#1565C0{% else %}#B71C1C{% endif %}">{{ "%.1f"|format(g) }}</td>
+                <td style="padding:7px 8px;text-align:center">
+                  <span class="grade-pill" style="color:{{ gc[0] }};background:{{ gc[1] }}">{{ grade }}</span>
+                </td>
+              </tr>
+              {% endfor %}
+              <tr style="background:var(--light);font-weight:700;border-top:2px solid var(--mint)">
+                <td style="padding:8px 10px">Grand Total</td>
+                <td colspan="2"></td>
+                <td style="padding:8px 8px;text-align:center;font-size:14px;color:var(--p)">{{ "%.1f"|format(td.total) }}</td>
+                <td style="padding:8px 8px;text-align:center">
+                  {% if td.aggregate %}
+                  {% set ac2 = agg_colors.get(td.agg_label, ('#333','#f5f5f5')) %}
+                  <span class="grade-pill" style="color:{{ ac2[0] }};background:{{ ac2[1] }}">Agg {{ td.aggregate }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              </tbody>
+            </table>
+            </div>
+            {% else %}
+            <p style="color:var(--muted);font-size:12px">No scores recorded for this term.</p>
+            {% endif %}
+          </div>
+
+          <!-- Attendance -->
+          <div>
+            <div class="section-title">📅 Attendance</div>
+            {% if td.attendance %}
+            {% set att = td.attendance %}
+            {% set pct = ((att.days_present or 0) / (att.total_days or 1) * 100)|round|int %}
+            <div style="text-align:center;margin-bottom:14px">
+              <div style="font-size:36px;font-weight:700;color:{% if pct>=80 %}var(--p){% elif pct>=60 %}#E65100{% else %}#B71C1C{% endif %}">{{ pct }}%</div>
+              <div style="font-size:12px;color:var(--muted)">Attendance Rate</div>
+              <div style="background:#e2e8f0;border-radius:20px;height:8px;overflow:hidden;margin:8px auto;max-width:160px">
+                <div style="background:{% if pct>=80 %}var(--p){% elif pct>=60 %}#E65100{% else %}#B71C1C{% endif %};height:100%;width:{{ pct }}%;border-radius:20px;transition:.5s"></div>
+              </div>
+            </div>
+            <div class="id-row"><span class="lbl">Days Present</span><span class="val" style="color:#22C55E">{{ att.days_present or 0 }}</span></div>
+            <div class="id-row"><span class="lbl">Days Absent</span><span class="val" style="color:#B71C1C">{{ att.days_absent or 0 }}</span></div>
+            <div class="id-row"><span class="lbl">School Days</span><span class="val">{{ att.total_days or 0 }}</span></div>
+            {% if att.days_absent and att.days_absent > 0 %}
+            <div style="margin-top:8px;padding:7px 10px;background:#FFF8E1;border-radius:7px;border-left:3px solid #E65100;font-size:11.5px;color:#E65100">
+              ⚠️ {{ att.days_absent }} day(s) absent this term
+            </div>
+            {% else %}
+            <div style="margin-top:8px;padding:7px 10px;background:#F0FBF4;border-radius:7px;border-left:3px solid #22C55E;font-size:11.5px;color:#22C55E">
+              ✅ Perfect attendance this term!
+            </div>
+            {% endif %}
+            {% else %}
+            <p style="color:var(--muted);font-size:12px">No attendance recorded.</p>
+            {% endif %}
+          </div>
+
+          <!-- Remarks -->
+          <div>
+            <div class="section-title">💬 Remarks & Conduct</div>
+            {% if td.remarks %}
+            {% set rem = td.remarks %}
+            <!-- Conduct -->
+            <div style="margin-bottom:12px">
+              {% set conduct_class = 'c-excellent' if rem.conduct=='Excellent' else 'c-verygood' if rem.conduct=='Very Good' else 'c-good' if rem.conduct=='Good' else 'c-fair' if rem.conduct=='Fair' else 'c-poor' %}
+              <span class="conduct-badge {{ conduct_class }}">{{ rem.conduct or 'Not recorded' }}</span>
+            </div>
+            {% if rem.class_teacher_remark %}
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:3px">Class Teacher</div>
+              <div style="background:var(--light);border-left:3px solid var(--p);padding:8px 10px;border-radius:5px;font-size:12.5px;font-style:italic">
+                "{{ rem.class_teacher_remark }}"
+              </div>
+            </div>
+            {% endif %}
+            {% if rem.head_teacher_remark %}
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:3px">Head Teacher</div>
+              <div style="background:var(--light);border-left:3px solid var(--s);padding:8px 10px;border-radius:5px;font-size:12.5px;font-style:italic">
+                "{{ rem.head_teacher_remark }}"
+              </div>
+            </div>
+            {% endif %}
+            {% if rem.interest %}
+            <div class="id-row"><span class="lbl">Interest</span><span class="val">{{ rem.interest }}</span></div>
+            {% endif %}
+            {% if rem.next_term_begins %}
+            <div class="id-row"><span class="lbl">Next Term</span><span class="val" style="font-size:11px">{{ rem.next_term_begins }}</span></div>
+            {% endif %}
+            {% else %}
+            <p style="color:var(--muted);font-size:12px">No remarks recorded.</p>
+            {% endif %}
+          </div>
+
+          <!-- Fee for this term -->
+          <div style="grid-column:1/-1">
+            <div class="section-title">💰 Fee Payment — Term {{ td.term }}</div>
+            {% if td.fee %}
+            {% set fee = td.fee %}
+            {% set bal = (fee.amount_due or 0) - (fee.amount_paid or 0) %}
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:12px">
+              <div style="background:var(--light);border-radius:8px;padding:10px;text-align:center">
+                <div style="font-weight:700;font-size:16px;color:var(--p)">GH₵{{ "%.2f"|format(fee.amount_due or 0) }}</div>
+                <div style="color:var(--muted);font-size:11px">Fee Type: {{ fee.fee_type or 'School Fees' }}</div>
+              </div>
+              <div style="background:#F0FBF4;border-radius:8px;padding:10px;text-align:center">
+                <div style="font-weight:700;font-size:16px;color:#22C55E">GH₵{{ "%.2f"|format(fee.amount_paid or 0) }}</div>
+                <div style="color:var(--muted);font-size:11px">Paid — {{ fee.payment_method or '—' }}</div>
+              </div>
+              <div style="background:{% if bal > 0 %}#FFEBEE{% else %}#F0FBF4{% endif %};border-radius:8px;padding:10px;text-align:center">
+                <div style="font-weight:700;font-size:16px;color:{% if bal > 0 %}#B71C1C{% else %}#22C55E{% endif %}">GH₵{{ "%.2f"|format(bal) }}</div>
+                <div style="color:var(--muted);font-size:11px">Balance</div>
+              </div>
+              <div style="background:var(--light);border-radius:8px;padding:10px;text-align:center">
+                {% if bal <= 0 %}
+                <div style="font-weight:700;font-size:14px;color:#22C55E">✅ CLEARED</div>
+                {% else %}
+                <div style="font-weight:700;font-size:14px;color:#B71C1C">⚠️ OWING</div>
+                {% endif %}
+                <div style="color:var(--muted);font-size:11px">{{ fee.payment_date or '—' }}</div>
+              </div>
+            </div>
+            {% else %}
+            <p style="color:var(--muted);font-size:12px">No fee record for this term.
+              <a href="{{ url_for('fees') }}?class_id={{ student.class_id }}" style="color:var(--p)">Record payment →</a>
+            </p>
+            {% endif %}
+          </div>
+
+          <!-- PDF link for this term -->
+          <div style="grid-column:1/-1;display:flex;gap:8px">
+            <a href="{{ url_for('preview_report', sid=student.id, term=td.term, year=td.year) }}"
+               class="btn btn-p" target="_blank">📄 Download Report Card</a>
+            <a href="{{ url_for('remarks_page') }}?class_id={{ student.class_id }}&term={{ td.term }}&year={{ td.year }}"
+               class="btn btn-o btn-sm">✏️ Edit Remarks</a>
+            <a href="{{ url_for('scores') }}?class_id={{ student.class_id }}&term={{ td.term }}&year={{ td.year }}"
+               class="btn btn-o btn-sm">📝 Edit Scores</a>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- ── Communication History ──────────────────────────────────── -->
+    {% if comms %}
+    <div class="card">
+      <div class="card-title">📧 Communication History</div>
+      {% for log in comms %}
+      <div class="comm-row">
+        <div class="comm-dot" style="background:{% if log.status=='sent' %}#22C55E{% else %}#B71C1C{% endif %}"></div>
+        <span class="badge {{ 'bg' if log.channel=='email' else 'bb' }}" style="font-size:10px">{{ log.channel }}</span>
+        <div style="flex:1">
+          <span style="font-weight:500">{{ log.status|title }}</span>
+          {% if log.error_message %}<span style="color:var(--red);font-size:10.5px"> — {{ log.error_message }}</span>{% endif %}
+        </div>
+        <span style="font-size:11px;color:var(--muted)">{{ log.sent_at[:16] if log.sent_at else '' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleTerm(idx){
+  var body = document.getElementById('term-body-'+idx);
+  var chev = document.getElementById('chevron-'+idx);
+  if(!body) return;
+  var hidden = body.style.display === 'none';
+  body.style.display = hidden ? 'block' : 'none';
+  if(chev) chev.style.transform = hidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+// Start all but first collapsed
+document.addEventListener('DOMContentLoaded', function(){
+  {% for td in term_data %}
+  {% if not loop.first %}
+  var b = document.getElementById('term-body-{{ loop.index }}');
+  var c = document.getElementById('chevron-{{ loop.index }}');
+  if(b){ b.style.display='none'; }
+  if(c){ c.style.transform='rotate(-90deg)'; }
+  {% endif %}
+  {% endfor %}
+});
+</script>
+{% endblock %}

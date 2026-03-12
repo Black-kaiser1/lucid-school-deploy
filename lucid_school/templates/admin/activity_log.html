@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Activity Log{% endblock %}
+{% block page_title %}👁️ System Activity Log{% endblock %}
+{% block extra_css %}
+<style>
+.log-row{display:grid;grid-template-columns:130px 90px 80px 160px 1fr 90px;gap:8px;
+  align-items:start;padding:9px 12px;border-bottom:1px solid #f0f4f2;font-size:12px}
+.log-row:hover{background:#f8fff9}
+.log-head{background:var(--light);border-radius:8px;font-size:10.5px;font-weight:700;
+  color:var(--p);text-transform:uppercase;letter-spacing:.4px}
+.action-badge{border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:700}
+.ab-login{background:#DCEDC8;color:#1B5E20}
+.ab-create{background:#E3F2FD;color:#1565C0}
+.ab-delete{background:#FFCDD2;color:#B71C1C}
+.ab-edit{background:#FFF9C4;color:#5D4037}
+.ab-view{background:#F3E5F5;color:#6A1B9A}
+.ab-default{background:#f0f4f2;color:var(--muted)}
+.live-dot{width:8px;height:8px;background:#22C55E;border-radius:50%;display:inline-block;
+  animation:pulse 2s infinite;margin-right:6px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+  <div><span class="live-dot"></span><span style="font-size:12px;color:var(--muted)">Live feed — last 500 events</span></div>
+  <form method="get" style="display:flex;gap:8px;align-items:center;margin-left:auto">
+    <select name="school_id" onchange="this.form.submit()" style="font-size:12.5px">
+      <option value="">All Schools</option>
+      {% for s in schools %}
+      <option value="{{ s.id }}" {% if school_filter==s.id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-p">Filter</button>
+  </form>
+  <button onclick="location.reload()" class="btn btn-sm" style="background:#f0f4f2;color:var(--p)">🔄 Refresh</button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <div style="overflow-x:auto">
+  <div style="min-width:700px">
+    <div class="log-row log-head">
+      <span>Time</span><span>School</span><span>Role</span>
+      <span>User</span><span>Action / Detail</span><span>IP</span>
+    </div>
+    {% for l in logs %}
+    {% set ac = l.action|lower %}
+    {% if 'login' in ac %}{% set cls='ab-login' %}
+    {% elif 'add' in ac or 'create' in ac or 'generat' in ac %}{% set cls='ab-create' %}
+    {% elif 'delete' in ac or 'remov' in ac %}{% set cls='ab-delete' %}
+    {% elif 'edit' in ac or 'update' in ac or 'save' in ac or 'reset' in ac %}{% set cls='ab-edit' %}
+    {% elif 'view' in ac or 'credential' in ac %}{% set cls='ab-view' %}
+    {% else %}{% set cls='ab-default' %}{% endif %}
+    <div class="log-row">
+      <span style="color:var(--muted);white-space:nowrap">{{ l.created_at[:16] }}</span>
+      <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        {{ l.school_name or '(Platform)' }}</span>
+      <span><span class="badge {% if l.role=='platform_admin' %}br{% elif l.role=='school_admin' %}bk{% else %}bb{% endif %}" style="font-size:9.5px">{{ l.role or '?' }}</span></span>
+      <span style="font-weight:600">{{ l.username }}</span>
+      <span>
+        <span class="action-badge {{ cls }}">{{ l.action }}</span>
+        {% if l.detail %}<span style="color:var(--muted);margin-left:6px;font-size:11px">{{ l.detail }}</span>{% endif %}
+      </span>
+      <span style="color:var(--muted);font-family:monospace;font-size:10.5px">{{ l.ip }}</span>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:32px;color:var(--muted)">No activity yet.</div>
+    {% endfor %}
+  </div>
+  </div>
+</div>
+{% endblock %}

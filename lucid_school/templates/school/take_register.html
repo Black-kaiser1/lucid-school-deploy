@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>📋 {{ cls.name }} Register — {{ reg_date }}</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --green:#1B4332;--mint:#52B788;--bg:#F0FDF4;--card:#fff;
+  --red:#B71C1C;--orange:#E65100;--blue:#1565C0;--gold:#F9A825;
+  --text:#1a1a1a;--muted:#666;--border:#e2e8f0;
+}
+html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.header{background:var(--green);color:#fff;padding:12px 16px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.hdr-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.back-btn{color:#fff;text-decoration:none;font-size:22px;line-height:1;flex-shrink:0;padding:4px}
+.hdr-title{font-size:17px;font-weight:700;flex:1}
+.hdr-sub{font-size:12px;opacity:.8}
+.hdr-counts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.hdr-count{background:rgba(255,255,255,.15);border-radius:8px;padding:6px 8px;text-align:center}
+.hdr-count-num{font-size:18px;font-weight:800;line-height:1}
+.hdr-count-lbl{font-size:10px;opacity:.75;margin-top:1px}
+.hdr-count.p{background:rgba(82,183,136,.35)}
+.hdr-count.a{background:rgba(183,28,28,.35)}
+.hdr-count.l{background:rgba(249,168,37,.3)}
+.hdr-count.e{background:rgba(21,101,192,.3)}
+
+/* ── Toolbar ─────────────────────────────────────────────────────── */
+.toolbar{background:#fff;padding:10px 14px;border-bottom:1px solid var(--border);
+  display:flex;gap:8px;align-items:center;position:sticky;top:80px;z-index:90}
+.mark-all{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+.ma-btn{border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;flex:1;min-width:60px}
+.ma-btn.p{background:#DCEDC8;color:#1B5E20}
+.ma-btn.a{background:#FFCDD2;color:var(--red)}
+.ma-btn.l{background:#FFF9C4;color:#5D4037}
+.save-btn{background:var(--green);color:#fff;border:none;border-radius:10px;
+  padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(27,67,50,.3)}
+.save-btn:active{transform:scale(.96)}
+.save-btn:disabled{background:#9E9E9E;box-shadow:none}
+
+/* ── Search ──────────────────────────────────────────────────────── */
+.search-wrap{padding:10px 14px;background:#fff;border-bottom:1px solid var(--border)}
+.search-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);
+  border-radius:10px;font-size:15px;outline:none}
+.search-input:focus{border-color:var(--mint)}
+
+/* ── Student cards ───────────────────────────────────────────────── */
+.students-list{padding:10px 12px}
+.stu-card{background:var(--card);border-radius:14px;margin-bottom:10px;
+  border:2px solid var(--border);overflow:hidden;transition:.15s;
+  box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.stu-card.s-present{border-color:#22C55E}
+.stu-card.s-absent {border-color:var(--red)}
+.stu-card.s-late   {border-color:var(--gold)}
+.stu-card.s-excused{border-color:var(--blue)}
+
+.stu-top{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.stu-num{width:30px;height:30px;border-radius:50%;background:var(--bg);
+  font-size:12px;font-weight:700;color:var(--green);display:flex;align-items:center;
+  justify-content:center;flex-shrink:0}
+.stu-photo{width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;
+  background:linear-gradient(135deg,var(--mint),var(--green));display:flex;
+  align-items:center;justify-content:center;font-size:16px;color:#fff;font-weight:700}
+.stu-photo img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.stu-info{flex:1;min-width:0}
+.stu-name{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.stu-id{font-size:11px;color:var(--muted)}
+.stu-status-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;flex-shrink:0}
+.badge-present{background:#DCEDC8;color:#1B5E20}
+.badge-absent {background:#FFCDD2;color:var(--red)}
+.badge-late   {background:#FFF9C4;color:#5D4037}
+.badge-excused{background:#E3F2FD;color:var(--blue)}
+
+/* 4-button status row */
+.stu-btns{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border)}
+.status-btn{border:none;background:none;padding:12px 4px;font-size:12.5px;font-weight:700;
+  cursor:pointer;transition:.12s;color:var(--muted)}
+.status-btn:active{transform:scale(.93)}
+.status-btn.active-p{background:#DCEDC8;color:#1B5E20}
+.status-btn.active-a{background:#FFCDD2;color:var(--red)}
+.status-btn.active-l{background:#FFF9C4;color:#5D4037}
+.status-btn.active-e{background:#E3F2FD;color:var(--blue)}
+
+/* Note expand */
+.note-row{padding:0 14px;max-height:0;overflow:hidden;transition:max-height .2s ease}
+.note-row.open{max-height:80px;padding:8px 14px}
+.note-input{width:100%;border:1.5px solid var(--border);border-radius:8px;
+  padding:8px 10px;font-size:13px;outline:none;font-family:inherit}
+.note-input:focus{border-color:var(--mint)}
+
+/* ── Submitted overlay ───────────────────────────────────────────── */
+.submitted-banner{background:#1B4332;color:#fff;padding:14px 16px;margin:10px 12px;
+  border-radius:12px;text-align:center}
+.submitted-banner h2{margin:0 0 6px;font-size:18px}
+.submitted-banner p{margin:0;font-size:13px;opacity:.85}
+.submitted-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.sub-stat{background:rgba(255,255,255,.12);border-radius:8px;padding:10px}
+.sub-stat-num{font-size:22px;font-weight:800}
+.sub-stat-lbl{font-size:11px;opacity:.75}
+
+/* ── Toast ───────────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);
+  background:#1B4332;color:#fff;padding:12px 24px;border-radius:30px;font-size:14px;
+  font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);z-index:1000;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{background:var(--red)}
+
+/* ── Offline indicator ───────────────────────────────────────────── */
+.offline-bar{background:#E65100;color:#fff;text-align:center;padding:6px;font-size:12px;
+  font-weight:600;display:none}
+body.offline .offline-bar{display:block}
+
+/* ── Floating save button ────────────────────────────────────────── */
+.fab{position:fixed;bottom:20px;right:20px;background:var(--green);color:#fff;
+  border:none;border-radius:50%;width:60px;height:60px;font-size:24px;cursor:pointer;
+  box-shadow:0 4px 16px rgba(27,67,50,.4);z-index:200;display:flex;align-items:center;
+  justify-content:center;transition:.2s}
+.fab:active{transform:scale(.9)}
+.fab.saved{background:#22C55E}
+
+@media(min-width:480px){
+  .students-list{max-width:600px;margin:0 auto}
+  .toolbar{max-width:600px;margin:0 auto;position:relative;top:0}
+  .search-wrap{max-width:600px;margin:0 auto}
+}
+</style>
+</head>
+<body>
+
+<div class="offline-bar">📵 Offline — register saved locally, will sync when connected</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="hdr-top">
+    <a href="{{ url_for('register_home') }}" class="back-btn">←</a>
+    <div style="flex:1">
+      <div class="hdr-title">📋 {{ cls.name }}</div>
+      <div class="hdr-sub">
+        {{ reg_date | replace('-', '/') }} &nbsp;·&nbsp; Term {{ term }}, {{ academic_year }}
+      </div>
+    </div>
+    <a href="{{ url_for('register_history', class_id=cls.id) }}"
+       style="color:rgba(255,255,255,.8);font-size:13px;text-decoration:none;flex-shrink:0">History</a>
+  </div>
+  <div class="hdr-counts">
+    <div class="hdr-count p">
+      <div class="hdr-count-num" id="cnt-P">{{ students|selectattr('reg_status','equalto','present')|list|length }}</div>
+      <div class="hdr-count-lbl">Present</div>
+    </div>
+    <div class="hdr-count a">
+      <div class="hdr-count-num" id="cnt-A">{{ students|selectattr('reg_status','equalto','absent')|list|length }}</div>
+      <div class="hdr-count-lbl">Absent</div>
+    </div>
+    <div class="hdr-count l">
+      <div class="hdr-count-num" id="cnt-L">{{ students|selectattr('reg_status','equalto','late')|list|length }}</div>
+      <div class="hdr-count-lbl">Late</div>
+    </div>
+    <div class="hdr-count e">
+      <div class="hdr-count-num" id="cnt-E">{{ students|selectattr('reg_status','equalto','excused')|list|length }}</div>
+      <div class="hdr-count-lbl">Excused</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="mark-all">
+    <button class="ma-btn p" onclick="markAll('present')">✅ All Present</button>
+    <button class="ma-btn a" onclick="markAll('absent')">❌ All Absent</button>
+    <button class="ma-btn l" onclick="markAll('late')">⏰ All Late</button>
+  </div>
+  <button class="save-btn" id="mainSaveBtn" onclick="saveRegister()">
+    {% if is_submitted %}🔄 Update{% else %}💾 Save{% endif %}
+  </button>
+</div>
+
+<!-- Search -->
+<div class="search-wrap">
+  <input class="search-input" type="search" placeholder="🔍 Search student…" id="searchInput"
+         oninput="filterStudents(this.value)" autocomplete="off">
+</div>
+
+{% if is_submitted and summary %}
+<!-- Submitted summary banner -->
+<div class="submitted-banner">
+  <h2>✅ Register Taken</h2>
+  <p>This register has been saved. You can edit and update it.</p>
+  <div class="submitted-grid">
+    <div class="sub-stat"><div class="sub-stat-num">{{ summary.present }}</div><div class="sub-stat-lbl">Present</div></div>
+    <div class="sub-stat"><div class="sub-stat-num">{{ summary.absent }}</div><div class="sub-stat-lbl">Absent</div></div>
+    <div class="sub-stat"><div class="sub-stat-num">{{ summary.late }}</div><div class="sub-stat-lbl">Late</div></div>
+    <div class="sub-stat"><div class="sub-stat-num">{{ summary.excused }}</div><div class="sub-stat-lbl">Excused</div></div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Students list -->
+<div class="students-list" id="studentsList">
+{% for s in students %}
+<div class="stu-card s-{{ s.reg_status }}" id="card-{{ s.id }}" data-name="{{ s.first_name }} {{ s.last_name }}">
+  <div class="stu-top">
+    <div class="stu-num">{{ loop.index }}</div>
+    <div class="stu-photo" id="photo-{{ s.id }}">
+      {% if s.photo_path %}
+      <img src="/uploads/photos/{{ s.photo_path }}" alt="{{ s.first_name }}"
+           onerror="this.parentElement.textContent='{{ s.first_name[0]|upper }}'">
+      {% else %}
+      {{ s.first_name[0]|upper }}{{ s.last_name[0]|upper }}
+      {% endif %}
+    </div>
+    <div class="stu-info">
+      <div class="stu-name">{{ s.last_name }}, {{ s.first_name }}</div>
+      <div class="stu-id">{{ s.student_id }}</div>
+    </div>
+    <div class="stu-status-badge badge-{{ s.reg_status }}" id="badge-{{ s.id }}">
+      {{ s.reg_status|upper }}
+    </div>
+  </div>
+
+  <!-- 4 status buttons -->
+  <div class="stu-btns">
+    <button class="status-btn {% if s.reg_status=='present' %}active-p{% endif %}"
+            id="btn-p-{{ s.id }}" onclick="setStatus({{ s.id }}, 'present', this)">
+      ✅ Present
+    </button>
+    <button class="status-btn {% if s.reg_status=='absent' %}active-a{% endif %}"
+            id="btn-a-{{ s.id }}" onclick="setStatus({{ s.id }}, 'absent', this)">
+      ❌ Absent
+    </button>
+    <button class="status-btn {% if s.reg_status=='late' %}active-l{% endif %}"
+            id="btn-l-{{ s.id }}" onclick="setStatus({{ s.id }}, 'late', this)">
+      ⏰ Late
+    </button>
+    <button class="status-btn {% if s.reg_status=='excused' %}active-e{% endif %}"
+            id="btn-e-{{ s.id }}" onclick="setStatus({{ s.id }}, 'excused', this)">
+      📝 Excused
+    </button>
+  </div>
+
+  <!-- Expandable note (shown for absent/late/excused) -->
+  <div class="note-row {% if s.reg_status in ['absent','late','excused'] %}open{% endif %}"
+       id="note-row-{{ s.id }}">
+    <input class="note-input" type="text" placeholder="Reason / note (optional)"
+           id="note-{{ s.id }}" value="{{ s.reg_note or '' }}"
+           oninput="noteDirty()">
+  </div>
+</div>
+{% else %}
+<div style="text-align:center;padding:40px;color:var(--muted)">
+  No active students in this class.
+</div>
+{% endfor %}
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn" onclick="saveRegister()" title="Save Register">💾</button>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+var STATUS = {};
+var NOTES  = {};
+var DIRTY  = false;
+var SAVING = false;
+
+var CLASS_ID  = {{ cls.id }};
+var REG_DATE  = '{{ reg_date }}';
+var TERM      = {{ term }};
+var YEAR      = '{{ academic_year }}';
+
+// Initialise from server state
+{% for s in students %}
+STATUS[{{ s.id }}] = '{{ s.reg_status }}';
+NOTES[{{ s.id }}]  = {{ (s.reg_note or '')|tojson }};
+{% endfor %}
+
+// ── Status toggle ─────────────────────────────────────────────────────────────
+function setStatus(sid, status, btnEl){
+  STATUS[sid] = status;
+  DIRTY = true;
+
+  // Update card border
+  var card = document.getElementById('card-'+sid);
+  card.className = 'stu-card s-'+status;
+
+  // Update badge
+  var badge = document.getElementById('badge-'+sid);
+  badge.className = 'stu-status-badge badge-'+status;
+  badge.textContent = status.toUpperCase();
+
+  // Update buttons — clear all, set active
+  var btns = card.querySelectorAll('.status-btn');
+  btns.forEach(function(b){ b.className='status-btn'; });
+  var map = {present:'p',absent:'a',late:'l',excused:'e'};
+  btnEl.className = 'status-btn active-'+map[status];
+
+  // Show/hide note row
+  var noteRow = document.getElementById('note-row-'+sid);
+  if(status==='present'){
+    noteRow.classList.remove('open');
+  } else {
+    noteRow.classList.add('open');
+    setTimeout(function(){ document.getElementById('note-'+sid).focus(); }, 180);
+  }
+
+  updateCounts();
+}
+
+function noteDirty(){ DIRTY = true; }
+
+function updateCounts(){
+  var counts = {P:0,A:0,L:0,E:0};
+  Object.values(STATUS).forEach(function(s){
+    if(s==='present') counts.P++;
+    else if(s==='absent')  counts.A++;
+    else if(s==='late')    counts.L++;
+    else if(s==='excused') counts.E++;
+  });
+  ['P','A','L','E'].forEach(function(k){
+    var el = document.getElementById('cnt-'+k);
+    if(el) el.textContent = counts[k];
+  });
+}
+
+// ── Mark all ──────────────────────────────────────────────────────────────────
+function markAll(status){
+  var visibleCards = document.querySelectorAll('.stu-card:not([style*="display: none"])');
+  visibleCards.forEach(function(card){
+    var sid = parseInt(card.id.replace('card-',''));
+    var map = {present:'p',absent:'a',late:'l',excused:'e'};
+    var btn = document.getElementById('btn-'+map[status]+'-'+sid);
+    if(btn) setStatus(sid, status, btn);
+  });
+}
+
+// ── Search / filter ───────────────────────────────────────────────────────────
+function filterStudents(q){
+  var query = q.toLowerCase().trim();
+  document.querySelectorAll('.stu-card').forEach(function(card){
+    var name = card.dataset.name.toLowerCase();
+    card.style.display = (!query || name.includes(query)) ? '' : 'none';
+  });
+}
+
+// ── Save register ─────────────────────────────────────────────────────────────
+function saveRegister(){
+  if(SAVING) return;
+  SAVING = true;
+
+  // Collect note values
+  Object.keys(NOTES).forEach(function(sid){
+    var inp = document.getElementById('note-'+sid);
+    if(inp) NOTES[sid] = inp.value.trim();
+  });
+
+  var entries = Object.keys(STATUS).map(function(sid){
+    return { student_id: parseInt(sid), status: STATUS[sid], note: NOTES[sid]||'' };
+  });
+
+  var btn = document.getElementById('mainSaveBtn');
+  var fab = document.getElementById('fabBtn');
+  btn.disabled = true; btn.textContent = '⏳ Saving…';
+
+  fetch('/school/register/save', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      class_id: CLASS_ID, date: REG_DATE,
+      term: TERM, academic_year: YEAR,
+      entries: entries
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    SAVING = false; DIRTY = false;
+    if(d.status==='ok'){
+      btn.disabled = false;
+      btn.textContent = '✅ Saved';
+      fab.textContent = '✅'; fab.classList.add('saved');
+      showToast('✅ Register saved! '+d.saved+' students synced.', false);
+      // Store offline backup
+      try { localStorage.setItem('reg_backup_'+CLASS_ID+'_'+REG_DATE, JSON.stringify(STATUS)); } catch(e){}
+      setTimeout(function(){ btn.textContent='🔄 Update'; fab.textContent='💾'; fab.classList.remove('saved'); }, 2500);
+    } else {
+      btn.disabled=false; btn.textContent='💾 Save';
+      showToast('❌ '+d.message, true);
+    }
+  })
+  .catch(function(e){
+    SAVING = false;
+    // Save to localStorage for offline fallback
+    try {
+      var backup = { class_id:CLASS_ID, date:REG_DATE, term:TERM, year:YEAR,
+                     entries:entries, saved_at: new Date().toISOString() };
+      localStorage.setItem('reg_offline_'+CLASS_ID+'_'+REG_DATE, JSON.stringify(backup));
+      showToast('📵 Saved offline — will sync when reconnected', false);
+    } catch(le){}
+    btn.disabled=false; btn.textContent='💾 Save';
+    showToast('⚠️ Could not reach server. Saved locally.', false);
+  });
+}
+
+// ── Auto-save on visibility change (phone lock / tab switch) ─────────────────
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden && DIRTY){
+    saveRegister();
+  }
+});
+
+// ── Offline detection ─────────────────────────────────────────────────────────
+window.addEventListener('online',  function(){ document.body.classList.remove('offline'); showToast('🟢 Back online', false); });
+window.addEventListener('offline', function(){ document.body.classList.add('offline'); });
+if(!navigator.onLine){ document.body.classList.add('offline'); }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, isError){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError?' error':'');
+  void t.offsetWidth;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+}
+
+// ── PWA: prevent scroll bounce on iOS ────────────────────────────────────────
+document.addEventListener('touchmove', function(e){
+  if(e.target.tagName !== 'INPUT') e.preventDefault();
+}, { passive: false });
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block title %}Timetable{% endblock %}
+{% block page_title %}📅 Timetable{% endblock %}
+{% block extra_css %}
+<style>
+.tt-grid{display:grid;grid-template-columns:80px repeat(5,1fr);gap:4px;font-size:12px}
+.tt-header{background:var(--p);color:#fff;padding:8px;border-radius:6px;text-align:center;font-weight:600;font-size:11px}
+.tt-time{background:var(--light);border:1px solid var(--mint);padding:6px 4px;border-radius:6px;text-align:center;font-size:10.5px;font-weight:600;color:var(--muted)}
+.tt-cell{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:6px;min-height:48px;font-size:11px;position:relative}
+.tt-cell:hover{border-color:var(--mint)}
+.tt-subj{font-weight:600;color:var(--p)}
+.tt-teacher{color:var(--muted);font-size:10px}
+.tt-del{position:absolute;top:3px;right:3px;cursor:pointer;color:var(--red);font-size:10px;display:none}
+.tt-cell:hover .tt-del{display:block}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="fbar">
+  <form method="get" style="display:flex;gap:8px;align-items:center">
+    <select name="class_id" onchange="this.form.submit()">
+      <option value="">Select Class...</option>
+      {% for cls in classes %}
+      <option value="{{ cls.id }}" {% if class_filter|string==cls.id|string %}selected{% endif %}>{{ cls.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% if class_filter %}
+  <button class="btn btn-p" onclick="document.getElementById('addModal').style.display='flex'" style="margin-left:auto">➕ Add Period</button>
+  {% endif %}
+</div>
+
+{% if class_filter and timetable %}
+<!-- Build grid structure -->
+{% set times = timetable|map(attribute='start_time')|list|unique|sort %}
+<div class="card">
+  <div class="card-title">📅 Weekly Timetable</div>
+  <div class="tt-grid">
+    <div class="tt-header">Time</div>
+    {% for day in days %}<div class="tt-header">{{ day }}</div>{% endfor %}
+
+    {% for time in timetable|map(attribute='start_time')|list|unique|sort %}
+    <div class="tt-time">{{ time }}</div>
+    {% for day in days %}
+      {% set found = namespace(item=None) %}
+      {% for entry in timetable %}
+        {% if entry.start_time == time and entry.day_of_week == day %}
+          {% set found.item = entry %}
+        {% endif %}
+      {% endfor %}
+      {% if found.item %}
+      <div class="tt-cell">
+        <form method="post" action="{{ url_for('delete_timetable', tid=found.item.id) }}" style="display:inline">
+          <button class="tt-del" title="Remove">✕</button>
+        </form>
+        <div class="tt-subj">{{ found.item.subject_name }}</div>
+        <div class="tt-teacher">{{ found.item.teacher_name or '—' }}</div>
+        <div style="font-size:9.5px;color:var(--muted)">{{ found.item.start_time }}–{{ found.item.end_time }}</div>
+        {% if found.item.room %}<div style="font-size:9.5px;color:var(--muted)">📍{{ found.item.room }}</div>{% endif %}
+      </div>
+      {% else %}
+      <div class="tt-cell" style="background:#fafafa"></div>
+      {% endif %}
+    {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Timetable list -->
+<div class="card">
+  <div class="card-title">📋 All Periods</div>
+  <div class="tw"><table>
+    <thead><tr><th>Day</th><th>Time</th><th>Subject</th><th>Teacher</th><th>Room</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for entry in timetable %}
+    <tr>
+      <td><span class="badge bb">{{ entry.day_of_week }}</span></td>
+      <td>{{ entry.start_time }} – {{ entry.end_time }}</td>
+      <td><strong>{{ entry.subject_name }}</strong> <span class="badge bk" style="font-size:9px">{{ entry.code }}</span></td>
+      <td>{{ entry.teacher_name or '—' }}</td>
+      <td>{{ entry.room or '—' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('delete_timetable', tid=entry.id) }}" onsubmit="return confirm('Remove this period?')">
+          <button class="btn btn-r btn-sm">🗑️</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{% elif class_filter %}
+<div class="card"><p style="text-align:center;color:var(--muted);padding:24px">No timetable entries yet. Click <strong>➕ Add Period</strong> to start building.</p></div>
+{% else %}
+<div class="card"><p style="text-align:center;color:var(--muted);padding:32px">👆 Select a class to view its timetable.</p></div>
+{% endif %}
+
+<!-- Add Period Modal -->
+<div id="addModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;width:460px;max-width:95vw">
+    <h3 style="margin-bottom:16px;font-size:15px">➕ Add Timetable Period</h3>
+    <form method="post" action="{{ url_for('save_timetable') }}">
+      <input type="hidden" name="class_id" value="{{ class_filter }}">
+      <div class="grid-2">
+        <div class="fg"><label>Day *</label>
+          <select name="day_of_week" required>
+            {% for d in days %}<option>{{ d }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="fg"><label>Subject *</label>
+          <select name="subject_id" required>
+            {% for subj in subjects %}
+            <option value="{{ subj.id }}">{{ subj.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg"><label>Start Time</label><input name="start_time" type="time" value="07:30" required></div>
+        <div class="fg"><label>End Time</label><input name="end_time" type="time" value="08:15" required></div>
+        <div class="fg"><label>Teacher</label>
+          <select name="teacher_id">
+            {% for t in teachers %}
+            <option value="{{ t.id }}">{{ t.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg"><label>Room</label><input name="room" placeholder="e.g. Room 3A"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button type="submit" class="btn btn-p">➕ Add</button>
+        <button type="button" class="btn btn-o" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}Fee Structure{% endblock %}
+{% block page_title %}📋 Fee Structure{% endblock %}
+{% block extra_css %}
+<style>
+.fs-card{background:#fff;border:1.5px solid #e8f5e9;border-radius:12px;padding:14px 16px;margin-bottom:10px}
+.fs-class{font-weight:700;font-size:14px;color:var(--p);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.fs-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:13px}
+.fs-item:last-child{border-bottom:none}
+.fi-name{flex:1}
+.fi-amount{font-weight:700;color:var(--p);width:90px;text-align:right}
+.fi-mand{font-size:10.5px;width:70px;text-align:center}
+.fi-del{color:var(--red);background:none;border:none;cursor:pointer;font-size:16px;padding:0 4px;opacity:.6}
+.fi-del:hover{opacity:1}
+.add-row{display:grid;grid-template-columns:1fr 110px 80px auto;gap:8px;align-items:center;padding:10px 0;border-top:2px solid var(--light)}
+.total-row{display:flex;justify-content:space-between;padding:10px 0;font-weight:700;font-size:14px;border-top:2px solid var(--p);margin-top:4px}
+.summary-pill{background:#fff;border:1.5px solid #e8f5e9;border-radius:10px;padding:12px 16px;text-align:center}
+.sp-num{font-size:20px;font-weight:800;color:var(--p)}
+.sp-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.copy-form{background:var(--light);border-radius:10px;padding:14px;margin-bottom:14px}
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Filter / controls -->
+<div class="fbar" style="margin-bottom:12px">
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}<option value="{{ t }}" {% if term==t %}selected{% endif %}>Term {{ t }}</option>{% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2026/2027','2027/2028'] %}<option value="{{ yr }}" {% if year==yr %}selected{% endif %}>{{ yr }}</option>{% endfor %}
+    </select>
+  </form>
+  <button class="btn btn-p" onclick="document.getElementById('addSection').style.display='block';this.style.display='none'">
+    ➕ Add Fee Item
+  </button>
+</div>
+
+<!-- Copy from previous term -->
+<div class="copy-form">
+  <div style="font-size:12.5px;font-weight:700;color:var(--p);margin-bottom:8px">📋 Copy Structure from Another Term</div>
+  <form method="post" action="{{ url_for('copy_fee_structure') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+    <div class="fg" style="margin:0">
+      <label style="font-size:11px">From Term</label>
+      <select name="from_term">{% for t in [1,2,3] %}<option value="{{ t }}">Term {{ t }}</option>{% endfor %}</select>
+    </div>
+    <div class="fg" style="margin:0">
+      <label style="font-size:11px">Year</label>
+      <select name="from_year">{% for yr in ['2025/2026','2024/2025'] %}<option value="{{ yr }}">{{ yr }}</option>{% endfor %}</select>
+    </div>
+    <span style="color:var(--muted);font-size:18px;padding-bottom:4px">→</span>
+    <div class="fg" style="margin:0">
+      <label style="font-size:11px">To Term</label>
+      <select name="to_term">{% for t in [1,2,3] %}<option value="{{ t }}" {% if t==term %}selected{% endif %}>Term {{ t }}</option>{% endfor %}</select>
+    </div>
+    <div class="fg" style="margin:0">
+      <label style="font-size:11px">Year</label>
+      <input name="to_year" value="{{ year }}" style="width:100px">
+    </div>
+    <button type="submit" class="btn btn-o btn-sm">Copy →</button>
+  </form>
+</div>
+
+<!-- Add section (hidden) -->
+<div id="addSection" style="display:none" class="card" style="margin-bottom:14px">
+  <div class="card-title">➕ Add Fee Items</div>
+  <div id="addRows">
+    <div class="add-row">
+      <input class="item-name" placeholder="Fee item name (e.g. School Fees, Books)" style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px">
+      <div style="position:relative">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted)">GH₵</span>
+        <input class="item-amount" type="number" step="0.01" min="0" placeholder="0.00"
+               style="padding:9px 12px 9px 32px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;width:100%">
+      </div>
+      <select class="item-class" style="padding:9px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px">
+        <option value="">School-Wide</option>
+        {% for c in classes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+      </select>
+      <select class="item-mand" style="padding:9px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px">
+        <option value="1">Mandatory</option><option value="0">Optional</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button onclick="addRow()" class="btn btn-o btn-sm">+ Add Another Row</button>
+    <button onclick="saveItems()" class="btn btn-p">💾 Save All</button>
+    <button onclick="document.getElementById('addSection').style.display='none'" class="btn btn-sm" style="background:#f0f4f2">Cancel</button>
+  </div>
+</div>
+
+<!-- Summary pills -->
+{% if summary %}
+<div class="summary-grid">
+  {% for s in summary %}
+  <div class="summary-pill">
+    <div class="sp-num">GH₵{{ "%.0f"|format(s.total) }}</div>
+    <div class="sp-lbl">{{ s.class_name }}</div>
+    <div style="font-size:10px;color:var(--muted)">{{ s.items }} item{{ 's' if s.items!=1 else '' }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Group by class -->
+{% if structure %}
+{% set ns = namespace(last_class='__none__') %}
+{% for item in structure %}
+{% if item.class_name != ns.last_class %}
+{% if ns.last_class != '__none__' %}</div>{% endif %}
+{% set ns.last_class = item.class_name %}
+<div class="fs-card">
+  <div class="fs-class">
+    <span>{{ item.class_name or 'School-Wide' }}</span>
+  </div>
+{% endif %}
+<div class="fs-item" id="fi-{{ item.id }}">
+  <div class="fi-name">
+    {{ item.item_name }}
+    {% if not item.is_mandatory %}<span style="font-size:10px;color:var(--muted);margin-left:4px">(optional)</span>{% endif %}
+  </div>
+  <div class="fi-amount">GH₵{{ "%.2f"|format(item.amount) }}</div>
+  <button class="fi-del" onclick="deleteItem({{ item.id }})" title="Delete">🗑️</button>
+</div>
+{% if loop.last %}</div>{% endif %}
+{% endfor %}
+{% else %}
+<div class="card" style="text-align:center;padding:32px;color:var(--muted)">
+  No fee structure for Term {{ term }}, {{ year }}. Add items above or copy from a previous term.
+</div>
+{% endif %}
+
+{% endblock %}
+{% block extra_js %}
+<script>
+var TERM = {{ term }};
+var YEAR = {{ year|tojson }};
+function addRow(){
+  var row = document.querySelector('.add-row').cloneNode(true);
+  row.querySelectorAll('input').forEach(function(i){ if(i.type!='number') i.value=''; else i.value=''; });
+  document.getElementById('addRows').appendChild(row);
+}
+function saveItems(){
+  var rows = document.querySelectorAll('.add-row');
+  var items = [];
+  rows.forEach(function(r){
+    var name = r.querySelector('.item-name').value.trim();
+    var amt  = parseFloat(r.querySelector('.item-amount').value || 0);
+    var cls  = r.querySelector('.item-class').value;
+    var mand = r.querySelector('.item-mand').value;
+    if(name) items.push({item_name:name, amount:amt, class_id:cls||null, is_mandatory:parseInt(mand)});
+  });
+  if(!items.length){ alert('Add at least one item.'); return; }
+  fetch('/school/fee-structure/save',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({items:items, term:TERM, year:YEAR})
+  }).then(r=>r.json()).then(function(d){
+    if(d.status==='ok') location.reload();
+    else alert('Error: '+d.message);
+  });
+}
+function deleteItem(id){
+  if(!confirm('Delete this fee item?')) return;
+  fetch('/school/fee-structure/'+id+'/delete',{method:'POST'})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok') document.getElementById('fi-'+id).remove();
+  });
+}
+</script>
+{% endblock %}

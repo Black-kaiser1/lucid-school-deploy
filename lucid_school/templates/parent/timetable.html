@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Timetable — Parent Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#f4f7f5;min-height:100vh;color:#1a1a2e}
+.header{background:#1B4332;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px}
+.back{color:rgba(255,255,255,.8);text-decoration:none;font-size:13px}
+h1{font-size:16px;font-weight:700;flex:1}
+.day-block{background:#fff;border-radius:12px;margin:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.day-title{font-size:13px;font-weight:700;color:#1B4332;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #f0f4f2}
+.period{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f8f8f8;font-size:12.5px}
+.period:last-child{border-bottom:none}
+.time{font-size:11px;color:#64748B;width:90px;flex-shrink:0}
+.subj{font-weight:600;flex:1}
+.teacher{font-size:11px;color:#64748B}
+.empty{text-align:center;padding:24px;color:#64748B;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="{{ url_for('parent_dashboard') }}" class="back">← Back</a>
+  <h1>📅 Class Timetable</h1>
+  <span style="font-size:11px;opacity:.7">{{ school.name }}</span>
+</div>
+{% for day in days %}
+{% if timetable.get(day) %}
+<div class="day-block">
+  <div class="day-title">{{ day }}</div>
+  {% for p in timetable[day] %}
+  <div class="period">
+    <div class="time">{{ p.start_time }} – {{ p.end_time }}</div>
+    <div class="subj">{{ p.subject_name }}</div>
+    <div class="teacher">{{ p.teacher_name or '' }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+{% if not timetable %}
+<div class="empty">No timetable available yet.</div>
+{% endif %}
+</body>
+</html>

@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Class Register{% endblock %}
+{% block page_title %}📋 Class Register{% endblock %}
+
+{% block extra_css %}
+<style>
+.reg-launch{background:linear-gradient(135deg,#1B4332,#2D6A4F);border-radius:16px;
+  padding:24px;color:#fff;margin-bottom:14px}
+.reg-launch h2{margin:0 0 4px;font-size:18px;font-weight:800}
+.reg-launch p{margin:0 0 16px;font-size:13px;opacity:.85}
+.launch-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lf-group{display:flex;flex-direction:column;gap:5px}
+.lf-label{font-size:11px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.4px}
+.lf-select,.lf-date{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);
+  border-radius:8px;padding:10px 12px;color:#fff;font-size:14px;outline:none;width:100%}
+.lf-select option{background:#1B4332;color:#fff}
+.lf-date::-webkit-calendar-picker-indicator{filter:invert(1)}
+.launch-btn{grid-column:1/-1;background:#D4A017;color:#1B4332;border:none;border-radius:10px;
+  padding:13px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px}
+.launch-btn:hover{background:#e5b020}
+
+.recent-card{background:#fff;border-radius:12px;border:1.5px solid #e8f5e9;margin-bottom:8px;
+  padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s}
+.recent-card:hover{border-color:var(--p);background:#f8fff9}
+.rc-date{font-size:13px;font-weight:700;color:var(--p);white-space:nowrap}
+.rc-cls{font-size:12px;color:var(--muted);margin-top:2px}
+.rc-bars{flex:1;display:flex;gap:4px;align-items:center}
+.rc-bar-wrap{flex:1;background:#e8f5e9;border-radius:3px;height:8px;overflow:hidden}
+.rc-bar{height:100%;border-radius:3px}
+.rc-stats{display:flex;gap:8px;font-size:11px;font-weight:600;flex-shrink:0}
+.rc-p{color:#1B5E20} .rc-a{color:var(--red)} .rc-l{color:#E65100}
+.quick-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.qb{background:#fff;border:1.5px solid #e8f5e9;border-radius:12px;padding:16px;
+  text-align:center;cursor:pointer;text-decoration:none;display:block;transition:.15s}
+.qb:hover{border-color:var(--p);background:#f0fdf4}
+.qb-icon{font-size:28px;margin-bottom:6px}
+.qb-label{font-size:13px;font-weight:600;color:var(--p)}
+.qb-sub{font-size:11px;color:var(--muted);margin-top:2px}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Launch register form -->
+<div class="reg-launch">
+  <h2>📋 Take Today's Register</h2>
+  <p>Select a class and date, then tap Go to start marking attendance.</p>
+  <div class="launch-form">
+    <div class="lf-group">
+      <label class="lf-label">Class</label>
+      <select class="lf-select" id="classSelect">
+        {% for cls in classes %}
+        <option value="{{ cls.id }}">{{ cls.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="lf-group">
+      <label class="lf-label">Date</label>
+      <input class="lf-date" type="date" id="dateSelect" value="{{ today }}">
+    </div>
+    <button class="launch-btn" onclick="launchRegister()">
+      📋 Open Register →
+    </button>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="quick-btns">
+  <a class="qb" href="{{ url_for('register_history') }}">
+    <div class="qb-icon">📅</div>
+    <div class="qb-label">View History</div>
+    <div class="qb-sub">Past register dates</div>
+  </a>
+  <a class="qb" href="{{ url_for('register_history') }}" id="attendanceLink">
+    <div class="qb-icon">📊</div>
+    <div class="qb-label">Attendance Report</div>
+    <div class="qb-sub">Term summary by student</div>
+  </a>
+</div>
+
+<!-- Recent activity -->
+{% if recent %}
+<div class="card">
+  <div class="card-title">🕐 Recent Registers</div>
+  {% set seen = [] %}
+  {% for r in recent %}
+  {% set key = r.date ~ '-' ~ r.class_id %}
+  {% if key not in seen %}
+  {% if seen.append(key) %}{% endif %}
+  {% set cls_name = class_map.get(r.class_id, 'Class ' ~ r.class_id) %}
+  {% set total = r.total if r.total else 1 %}
+  {% set pct_p = (r.present / total * 100)|round|int %}
+  {% set pct_a = (r.absent  / total * 100)|round|int %}
+  <div class="recent-card"
+       onclick="window.location='/school/register/take?class_id={{ r.class_id }}&date={{ r.date }}'">
+    <div>
+      <div class="rc-date">{{ r.date }}</div>
+      <div class="rc-cls">{{ cls_name }}</div>
+    </div>
+    <div class="rc-bars">
+      <div class="rc-bar-wrap">
+        <div class="rc-bar" style="width:{{ pct_p }}%;background:#22C55E"></div>
+      </div>
+    </div>
+    <div class="rc-stats">
+      <span class="rc-p">✅ {{ r.present }}</span>
+      <span class="rc-a">❌ {{ r.absent }}</span>
+      {% if r.late > 0 %}<span class="rc-l">⏰ {{ r.late }}</span>{% endif %}
+    </div>
+    <span style="color:var(--muted);font-size:16px">›</span>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:28px;color:var(--muted)">
+  <div style="font-size:36px;margin-bottom:8px">📋</div>
+  <div style="font-weight:600">No registers taken yet.</div>
+  <div style="font-size:12.5px;margin-top:4px">Use the form above to take today's register.</div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function launchRegister(){
+  var cls  = document.getElementById('classSelect').value;
+  var date = document.getElementById('dateSelect').value;
+  if(!cls){ alert('Please select a class.'); return; }
+  if(!date){ alert('Please select a date.'); return; }
+  window.location = '/school/register/take?class_id='+cls+'&date='+date;
+}
+// Keyboard enter on date
+document.getElementById('dateSelect').addEventListener('keydown', function(e){
+  if(e.key==='Enter') launchRegister();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Parent Portal — {{ student.first_name }} {{ student.last_name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--p:#1B4332;--s:#D4A017;--light:#F0FDF4;--muted:#64748B;--red:#B71C1C;--border:#e2e8f0}
+body{font-family:'DM Sans',sans-serif;background:#f4f7f5;min-height:100vh;color:#1a1a2e}
+
+/* Header */
+.header{background:var(--p);color:#fff;padding:0}
+.hdr-top{display:flex;align-items:center;gap:12px;padding:12px 20px}
+.hdr-logo{font-size:22px}
+.hdr-info{flex:1}
+.hdr-school{font-size:13px;font-weight:700}
+.hdr-title{font-size:11px;opacity:.7}
+.hdr-actions{display:flex;gap:8px}
+.hdr-actions a{color:rgba(255,255,255,.8);text-decoration:none;font-size:12px;
+  background:rgba(255,255,255,.1);padding:6px 12px;border-radius:8px}
+.hdr-actions a:hover{background:rgba(255,255,255,.2)}
+
+/* Tab bar */
+.tabs{display:flex;background:rgba(0,0,0,.2);padding:0 16px}
+.tab{padding:10px 16px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.6);
+  cursor:pointer;border-bottom:3px solid transparent;transition:.15s;white-space:nowrap}
+.tab.active{color:#fff;border-bottom-color:var(--s)}
+.tab:hover{color:#fff}
+
+/* Student hero */
+.stu-hero{background:#fff;margin:14px;border-radius:14px;padding:18px;
+  display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stu-photo{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--p),#2D6A4F);
+  display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:700;flex-shrink:0}
+.stu-photo img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.stu-name{font-size:18px;font-weight:800;color:var(--p)}
+.stu-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.stu-pills{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.pill{background:var(--light);border:1px solid #86EFAC;border-radius:20px;
+  padding:3px 10px;font-size:11px;font-weight:600;color:var(--p)}
+
+/* Content sections */
+.section{display:none;padding:0 14px 20px}
+.section.active{display:block}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;
+  box-shadow:0 1px 4px rgba(0,0,0,.05);border:1px solid var(--border)}
+.card-title{font-size:13px;font-weight:700;color:var(--p);margin-bottom:12px;
+  padding-bottom:8px;border-bottom:1px solid var(--light)}
+
+/* Scores grid */
+.score-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--light)}
+.score-row:last-child{border-bottom:none}
+.score-subject{flex:1;font-size:13px;font-weight:600}
+.score-bar-wrap{width:80px;background:#e8f5e9;border-radius:4px;height:8px;overflow:hidden}
+.score-bar{height:100%;border-radius:4px}
+.score-num{font-size:14px;font-weight:800;width:36px;text-align:right}
+
+/* Attendance ring */
+.att-ring{text-align:center;padding:10px}
+.ring-num{font-size:36px;font-weight:900;color:var(--p)}
+.ring-lbl{font-size:11px;color:var(--muted)}
+.att-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.att-cell{background:var(--light);border-radius:8px;padding:10px;text-align:center}
+.att-cell-num{font-size:20px;font-weight:800;color:var(--p)}
+.att-cell-lbl{font-size:10.5px;color:var(--muted)}
+
+/* Fee rows */
+.fee-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--light);font-size:13px}
+.fee-row:last-child{border-bottom:none}
+.fee-paid{color:#1B5E20;font-weight:700}
+.fee-due{color:var(--red);font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hdr-top">
+    <div class="hdr-logo">🏫</div>
+    <div class="hdr-info">
+      <div class="hdr-school">{{ school.name }}</div>
+      <div class="hdr-title">Parent Portal · Term {{ term }}, {{ year }}</div>
+    </div>
+    <div class="hdr-actions">
+      <a href="{{ url_for('parent_timetable') }}">📅 Timetable</a>
+      <a href="{{ url_for('parent_logout') }}">Sign Out</a>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('overview')">📊 Overview</div>
+    <div class="tab" onclick="showTab('scores')">📝 Grades</div>
+    <div class="tab" onclick="showTab('attendance')">📋 Attendance</div>
+    <div class="tab" onclick="showTab('fees')">💰 Fees</div>
+  </div>
+</div>
+
+<!-- Student hero card -->
+<div class="stu-hero">
+  <div class="stu-photo">
+    {% if student.photo_path %}
+    <img src="/uploads/photos/{{ student.photo_path }}" alt="{{ student.first_name }}"
+         onerror="this.parentElement.textContent='{{ student.first_name[0]|upper }}'">
+    {% else %}{{ student.first_name[0]|upper }}{{ student.last_name[0]|upper }}{% endif %}
+  </div>
+  <div>
+    <div class="stu-name">{{ student.first_name }} {{ student.last_name }}</div>
+    <div class="stu-meta">ID: {{ student.student_id }}</div>
+    <div class="stu-pills">
+      <span class="pill">{{ student.class_name or 'No class' }}</span>
+      {% if student.gender %}<span class="pill">{{ student.gender }}</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Overview tab -->
+<div class="section active" id="tab-overview">
+  {% if remarks %}
+  <div class="card">
+    <div class="card-title">🏆 Teacher's Remarks — Term {{ term }}</div>
+    {% if remarks.conduct %}
+    <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--light)">
+      <span>Conduct</span><strong>{{ remarks.conduct }}</strong>
+    </div>
+    {% endif %}
+    {% if remarks.class_teacher_remark %}
+    <div style="padding:8px 0;font-size:13px;border-bottom:1px solid var(--light)">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Class Teacher</div>
+      <em>{{ remarks.class_teacher_remark }}</em>
+    </div>
+    {% endif %}
+    {% if remarks.head_teacher_remark %}
+    <div style="padding:8px 0;font-size:13px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Head Teacher</div>
+      <em>{{ remarks.head_teacher_remark }}</em>
+    </div>
+    {% endif %}
+    {% if remarks.next_term_begins %}
+    <div style="background:#FFF9C4;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12.5px;color:#5D4037">
+      📅 Next term begins: <strong>{{ remarks.next_term_begins }}</strong>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if scores %}
+  <div class="card">
+    <div class="card-title">📝 Top Scores — Term {{ term }}</div>
+    {% for s in scores|sort(attribute='total',reverse=True) %}{% if loop.index <= 5 %}
+    {% set pct = (s.total)|round|int %}
+    <div class="score-row">
+      <div class="score-subject">{{ s.subject_name }}</div>
+      <div class="score-bar-wrap">
+        <div class="score-bar" style="width:{{ pct }}%;background:{% if pct>=70 %}#22C55E{% elif pct>=50 %}#F9A825{% else %}var(--red){% endif %}"></div>
+      </div>
+      <div class="score-num" style="color:{% if pct>=70 %}#1B5E20{% elif pct>=50 %}#E65100{% else %}var(--red){% endif %}">{{ pct }}</div>
+    </div>
+    {% endif %}{% endfor %}
+    <a href="#" onclick="showTab('scores');return false" style="font-size:12px;color:var(--p);display:block;text-align:center;margin-top:8px">View all subjects →</a>
+  </div>
+  {% endif %}
+
+  {% if fee_structure %}
+  <div class="card">
+    <div class="card-title">💰 Fee Structure — Term {{ term }}</div>
+    {% for item in fee_structure %}
+    <div class="fee-row">
+      <div>
+        {{ item.item_name }}
+        {% if not item.is_mandatory %}<span style="font-size:10px;color:var(--muted);margin-left:4px">(optional)</span>{% endif %}
+      </div>
+      <strong>GH₵{{ "%.2f"|format(item.amount) }}</strong>
+    </div>
+    {% endfor %}
+    {% set total_fees = fee_structure|sum(attribute='amount') %}
+    <div class="fee-row" style="font-size:14px;font-weight:800;border-top:2px solid var(--p);padding-top:10px">
+      <span>Total Due</span><span style="color:var(--p)">GH₵{{ "%.2f"|format(total_fees) }}</span>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Scores tab -->
+<div class="section" id="tab-scores">
+  <div class="card">
+    <div class="card-title">📝 All Subjects — Term {{ term }}, {{ year }}</div>
+    {% if scores %}
+    {% for s in scores %}
+    {% set pct = s.total|round|int %}
+    <div class="score-row">
+      <div style="flex:1">
+        <div class="score-subject">{{ s.subject_name }}</div>
+        <div style="font-size:10.5px;color:var(--muted)">{{ s.code }}</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar" style="width:{{ pct }}%;background:{% if pct>=70 %}#22C55E{% elif pct>=50 %}#F9A825{% else %}var(--red){% endif %}"></div>
+      </div>
+      <div class="score-num" style="color:{% if pct>=70 %}#1B5E20{% elif pct>=50 %}#E65100{% else %}var(--red){% endif %}">{{ pct }}</div>
+    </div>
+    {% endfor %}
+    <div style="padding:10px 0;display:flex;justify-content:space-between;font-size:13px;border-top:2px solid var(--p);margin-top:4px">
+      <strong>Average</strong>
+      <strong style="color:var(--p)">{{ (scores|sum(attribute='total') / scores|length)|round(1) }}</strong>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">No scores recorded yet for this term.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Attendance tab -->
+<div class="section" id="tab-attendance">
+  <div class="card">
+    <div class="card-title">📋 Attendance — Term {{ term }}, {{ year }}</div>
+    {% if attendance and attendance.total_days %}
+    {% set rate = ((attendance.days_present / attendance.total_days) * 100)|round|int %}
+    <div class="att-ring">
+      <div class="ring-num" style="color:{% if rate>=80 %}#1B5E20{% elif rate>=60 %}#E65100{% else %}var(--red){% endif %}">
+        {{ rate }}%
+      </div>
+      <div class="ring-lbl">Attendance Rate</div>
+    </div>
+    <div class="att-grid">
+      <div class="att-cell">
+        <div class="att-cell-num" style="color:#1B5E20">{{ attendance.days_present }}</div>
+        <div class="att-cell-lbl">Days Present</div>
+      </div>
+      <div class="att-cell">
+        <div class="att-cell-num" style="color:var(--red)">{{ attendance.days_absent }}</div>
+        <div class="att-cell-lbl">Days Absent</div>
+      </div>
+      <div class="att-cell">
+        <div class="att-cell-num">{{ attendance.total_days }}</div>
+        <div class="att-cell-lbl">Total Days</div>
+      </div>
+    </div>
+    {% if rate < 80 %}
+    <div style="background:#FFF3E0;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:12.5px;color:#E65100">
+      ⚠️ Attendance below 80%. Please ensure regular school attendance.
+    </div>
+    {% endif %}
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">No attendance data for this term.</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Fees tab -->
+<div class="section" id="tab-fees">
+  <div class="card">
+    <div class="card-title">💰 Payment History</div>
+    {% if fees %}
+    {% for f in fees %}
+    <div class="fee-row">
+      <div>
+        <div style="font-weight:600">{{ f.fee_type }}</div>
+        <div style="font-size:11px;color:var(--muted)">Term {{ f.term }}, {{ f.academic_year }}{% if f.payment_date %} · {{ f.payment_date }}{% endif %}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="fee-paid">GH₵{{ "%.2f"|format(f.amount_paid) }} paid</div>
+        {% if f.amount_due > f.amount_paid %}
+        <div class="fee-due" style="font-size:11px">GH₵{{ "%.2f"|format(f.amount_due - f.amount_paid) }} outstanding</div>
+        {% else %}
+        <div style="font-size:11px;color:#1B5E20">✅ Cleared</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">No fee records yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('tab-'+id).classList.add('active');
+  var tabs = ['overview','scores','attendance','fees'];
+  var idx = tabs.indexOf(id);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+}
+</script>
+</body>
+</html>

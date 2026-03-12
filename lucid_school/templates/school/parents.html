@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}Parents Portal{% endblock %}
+{% block page_title %}👨‍👩‍👧 Parents Portal{% endblock %}
+{% block extra_css %}
+<style>
+.parent-card{background:#fff;border:1.5px solid #e8f5e9;border-radius:12px;padding:14px 16px;
+  margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
+.p-name{font-weight:700;font-size:14px;color:var(--p)}
+.p-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.p-creds{background:var(--light);border-radius:8px;padding:8px 10px;margin-top:8px;
+  font-size:12px;display:flex;gap:14px;flex-wrap:wrap}
+.p-cred{display:flex;align-items:center;gap:5px}
+.p-cred-label{color:var(--muted)}
+.p-cred-val{font-family:monospace;font-weight:700;color:var(--p)}
+.portal-url{background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:10px 14px;
+  font-size:12.5px;color:#1565C0;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.copy-btn{background:#1565C0;color:#fff;border:none;border-radius:6px;padding:4px 10px;
+  font-size:11px;cursor:pointer;white-space:nowrap}
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="portal-url">
+  <span>🌐 Parent Portal URL:</span>
+  <strong id="portalUrl">{{ request.host_url }}parent/login</strong>
+  <button class="copy-btn" onclick="copyUrl()">Copy</button>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+<!-- Left: existing parents -->
+<div>
+  <div class="card-title" style="margin-bottom:10px">
+    Registered Parents ({{ parents|length }})
+  </div>
+  {% if not parents %}
+  <div class="card" style="text-align:center;padding:28px;color:var(--muted)">
+    No parent accounts yet. Add one using the form →
+  </div>
+  {% endif %}
+  {% for p in parents %}
+  <div class="parent-card">
+    <div>
+      <div class="p-name">{{ p.full_name }}</div>
+      <div class="p-meta">
+        {{ p.relation }} of <strong style="color:var(--p)">{{ p.student_name }}</strong>
+        · {{ p.class_name or '—' }}
+      </div>
+      {% if p.phone %}<div class="p-meta">📞 {{ p.phone }}</div>{% endif %}
+      <div class="p-creds">
+        <div class="p-cred">
+          <span class="p-cred-label">Login:</span>
+          <span class="p-cred-val">{{ p.username }}</span>
+        </div>
+        <div class="p-cred">
+          <span class="p-cred-label">School code:</span>
+          <span class="p-cred-val">{{ school.short_name }}</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+      <span class="badge {% if p.is_active %}bg{% else %}br{% endif %}">
+        {{ 'Active' if p.is_active else 'Inactive' }}
+      </span>
+      <button class="btn btn-sm btn-o" onclick="resetPw({{ p.id }})">🔑 Reset PW</button>
+      <button class="btn btn-sm" style="background:#f0f4f2;color:var(--muted)"
+              onclick="toggleParent({{ p.id }}, this)">
+        {{ '🚫 Disable' if p.is_active else '✅ Enable' }}
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Right: add parent form -->
+<div>
+  <div class="card">
+    <div class="card-title">➕ Create Parent Account</div>
+    <form method="post" action="{{ url_for('add_parent') }}">
+      <div class="fg">
+        <label>Child (Student) *</label>
+        <select name="student_id" required>
+          <option value="">Select student…</option>
+          {% for s in students %}
+          <option value="{{ s.id }}">{{ s.name }} ({{ s.sid }}) — {{ s.class_name or 'No class' }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Parent / Guardian Full Name *</label>
+        <input name="full_name" required placeholder="e.g. Mr. Joseph Appiah">
+      </div>
+      <div class="fg">
+        <label>Relation</label>
+        <select name="relation">
+          <option>Parent</option><option>Guardian</option>
+          <option>Father</option><option>Mother</option><option>Uncle</option><option>Aunt</option>
+        </select>
+      </div>
+      <div class="grid-2">
+        <div class="fg">
+          <label>Phone</label>
+          <input name="phone" placeholder="0244…">
+        </div>
+        <div class="fg">
+          <label>Email</label>
+          <input name="email" type="email" placeholder="email@example.com">
+        </div>
+        <div class="fg">
+          <label>Username *</label>
+          <input name="username" required placeholder="e.g. josephappiah">
+        </div>
+        <div class="fg">
+          <label>Password</label>
+          <input name="password" value="parent123" placeholder="parent123">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-p">➕ Create Parent Account</button>
+    </form>
+    <div style="background:#FFF9C4;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:12px;color:#5D4037">
+      💡 After creating, share the <strong>School Code ({{ school.short_name }})</strong>,
+      username, password, and the portal URL with the parent.
+    </div>
+  </div>
+</div>
+
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function copyUrl(){
+  navigator.clipboard.writeText(document.getElementById('portalUrl').textContent);
+  event.target.textContent='✅ Copied!';
+  setTimeout(function(){event.target.textContent='Copy'},1500);
+}
+function resetPw(pid){
+  var pw = prompt('New password for parent (leave blank for parent123):') || 'parent123';
+  fetch('/school/parents/'+pid+'/reset',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'password='+encodeURIComponent(pw)
+  }).then(r=>r.json()).then(function(d){
+    if(d.status==='ok') alert('✅ Password reset to: '+d.new_password);
+  });
+}
+function toggleParent(pid, btn){
+  fetch('/school/parents/'+pid+'/toggle',{method:'POST'})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok') location.reload();
+  });
+}
+</script>
+{% endblock %}

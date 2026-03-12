@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Database (local only — production uses PostgreSQL)
+instance/
+*.db
+*.sqlite
+
+# Generated files
+reports/*.pdf
+uploads/photos/*
+uploads/logos/*
+!uploads/photos/.gitkeep
+!uploads/logos/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+*.zip
+*.exe
+build/
+dist/

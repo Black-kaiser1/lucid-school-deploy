@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Teachers{% endblock %}
+{% block page_title %}👩‍🏫 Teachers & Staff{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 360px;gap:14px">
+  <div class="card">
+    <div class="card-title">👩‍🏫 Staff ({{ users|length }})</div>
+    <div class="tw"><table>
+      <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Email</th><th>Class</th><th>Last Login</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for u in users %}
+      <tr>
+        <td><strong>{{ u.full_name or u.username }}</strong></td>
+        <td><span class="badge bk">{{ u.username }}</span></td>
+        <td><span class="badge {{ 'bgold' if u.role=='school_admin' else 'bb' }}">{{ u.role|replace('_',' ')|title }}</span></td>
+        <td style="font-size:11px;color:var(--muted)">{{ u.email or '—' }}</td>
+        <td>{{ u.class_count }} class(es)</td>
+        <td style="font-size:11px;color:var(--muted)">{{ u.last_login[:16] if u.last_login else 'Never' }}</td>
+        <td>{% if u.is_active %}<span class="badge bg">✅ Active</span>{% else %}<span class="badge br">Inactive</span>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No staff yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">➕ Add Teacher / Staff</div>
+    <form method="post" action="{{ url_for('add_teacher') }}">
+      <div class="fg"><label>Full Name *</label><input name="full_name" required placeholder="e.g. Mr. Kofi Mensah"></div>
+      <div class="fg"><label>Username *</label><input name="username" required placeholder="e.g. kofi.mensah"></div>
+      <div class="fg"><label>Email</label><input name="email" type="email" placeholder="teacher@school.edu.gh"></div>
+      <div class="fg"><label>Phone</label><input name="phone" placeholder="0244123456"></div>
+      <div class="fg"><label>Role</label>
+        <select name="role">
+          <option value="teacher">Teacher</option>
+          <option value="school_admin">School Admin</option>
+        </select>
+      </div>
+      <div class="fg"><label>Assign to Class (Class Teacher)</label>
+        <select name="class_id">
+          <option value="">None</option>
+          {% for cls in classes %}
+          <option value="{{ cls.id }}">{{ cls.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg"><label>Password</label><input name="password" type="password" value="teacher123" placeholder="Set password"></div>
+      <button type="submit" class="btn btn-p" style="width:100%;margin-top:6px">➕ Add Staff</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

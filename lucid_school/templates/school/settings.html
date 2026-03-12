@@ -1,0 +1,726 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}⚙️ School Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Inline edit rows ───────────────────────────────── */
+.mgr-row { display:flex; align-items:center; gap:8px; padding:9px 10px; border-bottom:1px solid #f0f4f2; border-radius:7px; transition:.15s; }
+.mgr-row:last-child { border-bottom:none; }
+.mgr-row:hover { background:#f8fff9; }
+.mgr-row.editing { background:#FFFDE7; border:1.5px solid var(--s); border-radius:8px; margin:-1px; padding:10px 10px; }
+
+.mgr-name   { font-weight:600; font-size:13px; flex:2; }
+.mgr-badge  { flex-shrink:0; }
+.mgr-muted  { font-size:11.5px; color:var(--muted); flex:1; }
+.mgr-count  { font-size:11px; color:var(--muted); min-width:60px; text-align:right; }
+
+/* edit inputs inside rows */
+.ei { padding:5px 8px; border:1.5px solid #d1e8d8; border-radius:6px; font-size:12.5px; font-family:'DM Sans',sans-serif; background:#fff; }
+.ei:focus { border-color:var(--p); outline:none; }
+.ei.wide { flex:2; min-width:0; }
+.ei.narrow { width:64px; }
+.ei.sel { flex:1; min-width:0; }
+
+/* action buttons */
+.row-actions { display:flex; gap:5px; margin-left:auto; flex-shrink:0; }
+.ia { border:none; padding:5px 9px; border-radius:6px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:'DM Sans',sans-serif; transition:.12s; }
+.ia.edit-btn { background:var(--light); color:var(--p); border:1.5px solid var(--mint); }
+.ia.edit-btn:hover { background:var(--mint); }
+.ia.save-btn { background:var(--p); color:#fff; }
+.ia.save-btn:hover { opacity:.88; }
+.ia.cancel-btn { background:#f4f4f4; color:var(--muted); }
+.ia.del-btn { background:#fff0f0; color:#B71C1C; border:1.5px solid #FFCDD2; }
+.ia.del-btn:hover { background:#FFCDD2; }
+
+/* view vs edit mode */
+.view-mode { display:flex; align-items:center; gap:8px; flex:1; }
+.edit-mode  { display:none; align-items:center; gap:7px; flex:1; flex-wrap:wrap; }
+.mgr-row.editing .view-mode { display:none; }
+.mgr-row.editing .edit-mode  { display:flex; }
+.mgr-row.editing .edit-btn   { display:none; }
+.mgr-row.editing .save-btn, .mgr-row.editing .cancel-btn { display:inline-block; }
+.save-btn, .cancel-btn { display:none; }
+
+/* add form */
+.add-form { display:flex; gap:6px; flex-wrap:wrap; padding:10px 10px; background:var(--light); border-radius:8px; margin-top:8px; border:1px dashed var(--mint); }
+.add-form input, .add-form select { padding:7px 9px; border:1.5px solid #d1e8d8; border-radius:7px; font-size:12.5px; font-family:'DM Sans',sans-serif; background:#fff; }
+
+/* toast */
+.st { position:fixed; bottom:20px; right:20px; padding:10px 16px; border-radius:8px; font-size:13px; font-weight:600; z-index:999; display:none; max-width:340px; box-shadow:0 6px 20px rgba(0,0,0,.15); }
+.st.ok  { background:#DCEDC8; color:#1B5E20; border-left:4px solid #2D6A4F; }
+.st.err { background:#FFCDD2; color:#B71C1C; border-left:4px solid #B71C1C; }
+
+/* grading panel */
+.preset-item { padding:8px 12px; font-size:12.5px; cursor:pointer; border-radius:6px; }
+.preset-item:hover { background:var(--light); }
+.gr-row td { padding:6px 8px; border-bottom:1px solid #f0f4f2; vertical-align:middle; }
+.gr-row:hover td { background:#f8fff9; }
+.gr-inp { padding:5px 8px; border:1.5px solid #d1e8d8; border-radius:6px; font-size:12px; font-family:'DM Sans',sans-serif; background:#fff; width:100%; }
+.gr-inp:focus { border-color:var(--p); outline:none; }
+.gr-preview { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; min-width:36px; text-align:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+  <!-- ── School Info ──────────────────────────────────────────────────────── -->
+  <div class="card" style="grid-column:1/-1">
+    <div class="card-title">🏫 School Information & Branding</div>
+    <form method="post" enctype="multipart/form-data">
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:20px;margin-bottom:16px">
+        <div style="text-align:center">
+          {% if school.logo_path %}
+          <img src="/uploads/logos/{{ school.logo_path }}"
+               style="width:80px;height:80px;object-fit:contain;border:2px solid var(--mint);border-radius:10px;display:block;margin:0 auto 8px"
+               onerror="this.style.display='none'" id="logo-preview">
+          {% else %}
+          <div style="width:80px;height:80px;background:var(--light);border:2px dashed var(--mint);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px" id="logo-preview">🏫</div>
+          {% endif %}
+          <input type="file" name="logo" accept="image/*" style="display:none" id="logoInput"
+                 onchange="previewLogo(this)">
+          <button type="button" class="btn btn-o btn-sm" style="width:100%;font-size:10.5px" onclick="document.getElementById('logoInput').click()">📷 Change Logo</button>
+          <div style="font-size:9.5px;color:var(--muted);margin-top:3px">PNG/JPG, max 5MB</div>
+        </div>
+        <div class="grid-2">
+          <div class="fg" style="grid-column:1/-1"><label>School Name *</label><input name="name" value="{{ school.name }}" required></div>
+          <div class="fg" style="grid-column:1/-1"><label>Address</label><input name="address" value="{{ school.address or '' }}"></div>
+          <div class="fg"><label>Phone</label><input name="phone" value="{{ school.phone or '' }}"></div>
+          <div class="fg"><label>Email</label><input name="email" type="email" value="{{ school.email or '' }}"></div>
+          <div class="fg" style="grid-column:1/-1"><label>School Motto</label><input name="motto" value="{{ school.motto or '' }}"></div>
+          <div class="fg"><label>Primary Colour</label><input name="primary_color" type="color" value="{{ school.primary_color or '#1B4332' }}"></div>
+          <div class="fg"><label>Accent Colour</label><input name="secondary_color" type="color" value="{{ school.secondary_color or '#D4A017' }}"></div>
+          <div class="fg"><label>Current Term</label>
+            <select name="current_term">
+              {% for t in [1,2,3] %}<option value="{{ t }}" {% if school.current_term==t %}selected{% endif %}>Term {{ t }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="fg"><label>Academic Year</label><input name="current_year" value="{{ school.current_year or '2025/2026' }}"></div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-p">💾 Save Settings</button>
+    </form>
+  </div>
+
+  <!-- ── Classes Manager ─────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">
+      🏫 Classes
+      <span class="badge bk" style="margin-left:6px">{{ classes|length }}</span>
+    </div>
+
+    <div id="classes-list">
+    {% for cls in classes %}
+    <div class="mgr-row" id="cls-row-{{ cls.id }}">
+
+      <!-- View mode -->
+      <div class="view-mode">
+        <span class="mgr-name">{{ cls.name }}</span>
+        <span class="badge bb">{{ cls.level }}</span>
+        <span class="mgr-muted">
+          Cap: {{ cls.capacity }}
+          &nbsp;·&nbsp;
+          {{ cls.teacher_name or '—' }}
+        </span>
+        <span class="mgr-count">
+          {% if cls.student_count > 0 %}
+          <span style="color:var(--p);font-weight:600">{{ cls.student_count }}</span> students
+          {% else %}
+          <span style="color:var(--muted)">empty</span>
+          {% endif %}
+        </span>
+      </div>
+
+      <!-- Edit mode (hidden until ✏️ clicked) -->
+      <div class="edit-mode">
+        <input class="ei wide" id="cls-name-{{ cls.id }}" value="{{ cls.name }}" placeholder="Name">
+        <select class="ei sel" id="cls-level-{{ cls.id }}">
+          {% for lvl in ['JHS','SHS','Primary'] %}
+          <option value="{{ lvl }}" {% if cls.level==lvl %}selected{% endif %}>{{ lvl }}</option>
+          {% endfor %}
+        </select>
+        <input class="ei narrow" id="cls-cap-{{ cls.id }}" type="number" value="{{ cls.capacity }}" min="1" max="200" placeholder="Cap">
+        <select class="ei sel" id="cls-teacher-{{ cls.id }}">
+          <option value="">— No teacher —</option>
+          {% for t in teachers %}
+          <option value="{{ t.id }}" {% if cls.class_teacher_id==t.id %}selected{% endif %}>{{ t.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Actions -->
+      <div class="row-actions">
+        <button class="ia edit-btn" onclick="startEdit('cls',{{ cls.id }})">✏️ Edit</button>
+        <button class="ia save-btn" onclick="saveClass({{ cls.id }})">💾 Save</button>
+        <button class="ia cancel-btn" onclick="cancelEdit('cls',{{ cls.id }})">✕</button>
+        <button class="ia del-btn" onclick="deleteClass({{ cls.id }},'{{ cls.name }}')" title="Delete class">🗑️</button>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No classes yet. Add one below.</div>
+    {% endfor %}
+    </div>
+
+    <!-- Add class form -->
+    <form class="add-form" method="post" action="{{ url_for('add_class') }}">
+      <input name="name" placeholder="Class name *" style="flex:2" required>
+      <select name="level">
+        <option>JHS</option><option>SHS</option><option>Primary</option>
+      </select>
+      <input name="capacity" type="number" placeholder="Cap" value="40" style="width:64px">
+      <button type="submit" class="btn btn-p btn-sm">➕ Add Class</button>
+    </form>
+  </div>
+
+  <!-- ── Subjects Manager ────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">
+      📚 Subjects
+      <span class="badge bk" style="margin-left:6px">{{ subjects|length }}</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted);font-weight:400">
+        Core: {{ subjects|selectattr('is_core','equalto',1)|list|length }}
+        &nbsp;·&nbsp;
+        Elective: {{ subjects|selectattr('is_core','equalto',0)|list|length }}
+      </span>
+    </div>
+
+    <!-- Core subjects -->
+    {% set core = subjects|selectattr('is_core','equalto',1)|list %}
+    {% set elective = subjects|selectattr('is_core','equalto',0)|list %}
+
+    {% if core %}
+    <div style="font-size:10px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:1px;padding:6px 10px 4px;margin-bottom:2px">
+      Core Subjects
+    </div>
+    {% for subj in core %}
+    <div class="mgr-row" id="subj-row-{{ subj.id }}">
+      <div class="view-mode">
+        <span class="mgr-name">{{ subj.name }}</span>
+        <span class="badge bk" style="font-size:10px">{{ subj.code }}</span>
+        <span class="badge bg" style="font-size:10px">Core</span>
+      </div>
+      <div class="edit-mode">
+        <input class="ei wide" id="subj-name-{{ subj.id }}" value="{{ subj.name }}" placeholder="Subject name">
+        <input class="ei" id="subj-code-{{ subj.id }}" value="{{ subj.code }}" placeholder="Code" style="width:72px">
+        <select class="ei" id="subj-core-{{ subj.id }}">
+          <option value="1" selected>Core</option>
+          <option value="0">Elective</option>
+        </select>
+      </div>
+      <div class="row-actions">
+        <button class="ia edit-btn" onclick="startEdit('subj',{{ subj.id }})">✏️ Edit</button>
+        <button class="ia save-btn" onclick="saveSubject({{ subj.id }})">💾 Save</button>
+        <button class="ia cancel-btn" onclick="cancelEdit('subj',{{ subj.id }})">✕</button>
+        <button class="ia del-btn" onclick="deleteSubject({{ subj.id }},'{{ subj.name }}')" title="Delete subject">🗑️</button>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if elective %}
+    <div style="font-size:10px;font-weight:700;color:#1565C0;text-transform:uppercase;letter-spacing:1px;padding:10px 10px 4px;margin-bottom:2px;border-top:1px dashed var(--mint);margin-top:4px">
+      Elective Subjects
+    </div>
+    {% for subj in elective %}
+    <div class="mgr-row" id="subj-row-{{ subj.id }}">
+      <div class="view-mode">
+        <span class="mgr-name">{{ subj.name }}</span>
+        <span class="badge bk" style="font-size:10px">{{ subj.code }}</span>
+        <span class="badge bo" style="font-size:10px">Elective</span>
+      </div>
+      <div class="edit-mode">
+        <input class="ei wide" id="subj-name-{{ subj.id }}" value="{{ subj.name }}" placeholder="Subject name">
+        <input class="ei" id="subj-code-{{ subj.id }}" value="{{ subj.code }}" placeholder="Code" style="width:72px">
+        <select class="ei" id="subj-core-{{ subj.id }}">
+          <option value="1">Core</option>
+          <option value="0" selected>Elective</option>
+        </select>
+      </div>
+      <div class="row-actions">
+        <button class="ia edit-btn" onclick="startEdit('subj',{{ subj.id }})">✏️ Edit</button>
+        <button class="ia save-btn" onclick="saveSubject({{ subj.id }})">💾 Save</button>
+        <button class="ia cancel-btn" onclick="cancelEdit('subj',{{ subj.id }})">✕</button>
+        <button class="ia del-btn" onclick="deleteSubject({{ subj.id }},'{{ subj.name }}')" title="Delete subject">🗑️</button>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if not subjects %}
+    <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No subjects yet. Add one below.</div>
+    {% endif %}
+
+    <!-- Add subject form -->
+    <form class="add-form" method="post" action="{{ url_for('add_subject') }}">
+      <input name="name" placeholder="Subject name *" style="flex:2" required>
+      <input name="code" placeholder="Code e.g. MATH" style="width:90px" required>
+      <select name="is_core">
+        <option value="1">Core</option><option value="0">Elective</option>
+      </select>
+      <button type="submit" class="btn btn-p btn-sm">➕ Add Subject</button>
+    </form>
+  </div>
+
+  <!-- ── Grading System ─────────────────────────────────────────────────── -->
+  <div class="card" style="grid-column:1/-1">
+    <div class="card-title" style="display:flex;align-items:center;gap:10px">
+      📊 Grading System
+      <span class="badge bk" style="font-size:10px" id="gs-mode-badge">Custom</span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <div style="position:relative;display:inline-block">
+          <button class="btn btn-o btn-sm" onclick="togglePresets()" type="button">📋 Presets ▾</button>
+          <div id="presets-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:50;min-width:200px;padding:6px">
+            <div class="preset-item" onclick="loadPreset('waec')">🇬🇭 WAEC Ghana (default)</div>
+            <div class="preset-item" onclick="loadPreset('percentage')">📊 Simple Percentage (A–F)</div>
+            <div class="preset-item" onclick="loadPreset('primary')">🏫 Primary School (1–3 scale)</div>
+          </div>
+        </div>
+        <button class="btn btn-o btn-sm" onclick="resetGrading()" type="button">↺ Reset to WAEC</button>
+      </div>
+    </div>
+
+    <div style="background:#FFFDE7;border:1px solid #F9A825;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#5D4037">
+      ⚙️ Changes apply to all new report cards, score pages and PDFs. Existing score numbers are unchanged — only how they are labelled and graded changes.
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:20px">
+      <!-- Left: Grade bands -->
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Grade Bands</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px" id="grades-table">
+            <thead>
+              <tr style="background:var(--p);color:#fff">
+                <th style="padding:8px 10px;text-align:left;font-size:11px">Grade Letter</th>
+                <th style="padding:8px 10px;text-align:center;font-size:11px">Min Score (%)</th>
+                <th style="padding:8px 10px;text-align:center;font-size:11px">Points</th>
+                <th style="padding:8px 10px;text-align:left;font-size:11px">Remark</th>
+                <th style="padding:8px 6px;text-align:center;font-size:11px">Preview</th>
+                <th style="padding:8px 6px;width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="grades-tbody"></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-o btn-sm" onclick="addGradeRow()" style="margin-top:8px">➕ Add grade band</button>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Sorted by Min Score. Min score 0 = failing grade catch-all.</div>
+      </div>
+
+      <!-- Right: Settings -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:var(--light);border-radius:10px;padding:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Score Split (must = 100)</div>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Class Score max</label>
+              <input type="number" id="cs-max" min="0" max="100" value="{{ grade_scale.class_score_max }}"
+                     style="width:100%;padding:7px 9px;border:1.5px solid #d1e8d8;border-radius:7px;font-size:13px;margin-top:2px" oninput="checkSplit()"></div>
+            <div style="padding-bottom:9px;color:var(--muted);font-size:18px">+</div>
+            <div style="flex:1"><label style="font-size:11px;color:var(--muted)">Exam Score max</label>
+              <input type="number" id="es-max" min="0" max="100" value="{{ grade_scale.exam_score_max }}"
+                     style="width:100%;padding:7px 9px;border:1.5px solid #d1e8d8;border-radius:7px;font-size:13px;margin-top:2px" oninput="checkSplit()"></div>
+            <div style="padding-bottom:9px;color:var(--muted);font-size:18px">=</div>
+            <div style="padding-bottom:9px"><span id="split-total" style="font-size:18px;font-weight:700;color:var(--p)">100</span></div>
+          </div>
+          <div id="split-warning" style="display:none;color:#B71C1C;font-size:11.5px;margin-top:4px">⚠️ Must equal 100</div>
+        </div>
+
+        <div style="background:var(--light);border-radius:10px;padding:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Aggregate Calculation</div>
+          <select id="agg-subjects" style="width:100%;padding:8px 10px;border:1.5px solid #d1e8d8;border-radius:7px;font-size:12.5px;margin-bottom:6px">
+            <option value="best6"    {{ 'selected' if grade_scale.aggregate_subjects=='best6'    else '' }}>Best 6 subjects (BECE/WASSCE style)</option>
+            <option value="all_core" {{ 'selected' if grade_scale.aggregate_subjects=='all_core' else '' }}>All core subjects only</option>
+            <option value="all"      {{ 'selected' if grade_scale.aggregate_subjects=='all'      else '' }}>All subjects</option>
+          </select>
+          <div style="font-size:11px;color:var(--muted)">Lower aggregate = better performance (WAEC style).</div>
+        </div>
+
+        <div style="background:var(--light);border-radius:10px;padding:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Aggregate Remarks</div>
+          <div style="display:grid;grid-template-columns:1fr 80px;gap:6px 10px;align-items:center;font-size:12px">
+            <span style="color:#1B5E20;font-weight:600">🟢 DISTINCTION (≤)</span>
+            <input type="number" id="agg-distinction" value="{{ grade_scale.agg_distinction }}" min="1" max="999"
+                   style="padding:5px 8px;border:1.5px solid #d1e8d8;border-radius:6px;font-size:12px">
+            <span style="color:#1565C0;font-weight:600">🔵 CREDIT (≤)</span>
+            <input type="number" id="agg-credit" value="{{ grade_scale.agg_credit }}" min="1" max="999"
+                   style="padding:5px 8px;border:1.5px solid #d1e8d8;border-radius:6px;font-size:12px">
+            <span style="color:#E65100;font-weight:600">🟠 PASS (≤)</span>
+            <input type="number" id="agg-pass" value="{{ grade_scale.agg_pass }}" min="1" max="999"
+                   style="padding:5px 8px;border:1.5px solid #d1e8d8;border-radius:6px;font-size:12px">
+            <span style="color:#B71C1C;font-weight:600">🔴 FAIL</span>
+            <span style="font-size:11px;color:var(--muted)">auto</span>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-p" onclick="saveGrading()" style="width:100%">💾 Save Grading System</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SMS Configuration ───────────────────────────────────────────────── -->
+  <div class="card" style="grid-column:1/-1">
+    <div class="card-title">📱 SMS Configuration (Ghana — Hubtel)</div>
+    <form method="post" action="{{ url_for('save_sms_settings') }}">
+      <div class="grid-2">
+        <div class="fg"><label>SMS Provider</label>
+          <select name="provider">
+            <option value="hubtel" {% if sms_cfg and sms_cfg.provider=='hubtel' %}selected{% endif %}>Hubtel (Ghana)</option>
+            <option value="mnotify" {% if sms_cfg and sms_cfg.provider=='mnotify' %}selected{% endif %}>mNotify (Ghana)</option>
+          </select>
+        </div>
+        <div class="fg"><label>Sender ID</label>
+          <input name="sender_id" value="{{ sms_cfg.sender_id if sms_cfg else 'SCHOOL' }}" placeholder="e.g. SCHOOL">
+        </div>
+        <div class="fg"><label>API Key / Client ID</label>
+          <input name="api_key" value="{{ sms_cfg.api_key if sms_cfg else '' }}" placeholder="Your Hubtel API key">
+        </div>
+        <div class="fg"><label>API Secret / Client Secret</label>
+          <input name="api_secret" type="password" value="{{ sms_cfg.api_secret if sms_cfg else '' }}" placeholder="Your Hubtel API secret">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;cursor:pointer">
+        <input type="checkbox" name="is_active" value="1" {% if sms_cfg and sms_cfg.is_active %}checked{% endif %}>
+        Enable SMS sending
+      </label>
+      <button type="submit" class="btn btn-p">💾 Save SMS Settings</button>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">
+        💡 Get Hubtel credentials at <a href="https://developers.hubtel.com" target="_blank" style="color:var(--p)">developers.hubtel.com</a>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<!-- Toast notification -->
+<div class="st" id="toast"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Initial scale from server ─────────────────────────────────────────────────
+var currentScale = {{ grade_scale | tojson }};
+
+// ── Presets ───────────────────────────────────────────────────────────────────
+var PRESETS = {
+  waec: {
+    grades: [
+      {min:75,letter:'A1',point:1,remark:'Excellent'},
+      {min:70,letter:'B2',point:2,remark:'Very Good'},
+      {min:65,letter:'B3',point:3,remark:'Good'},
+      {min:60,letter:'C4',point:4,remark:'Credit'},
+      {min:55,letter:'C5',point:5,remark:'Credit'},
+      {min:50,letter:'C6',point:6,remark:'Credit'},
+      {min:45,letter:'D7',point:7,remark:'Pass'},
+      {min:40,letter:'E8',point:8,remark:'Pass'},
+      {min:0, letter:'F9',point:9,remark:'Fail'},
+    ],
+    aggregate_subjects:'best6', agg_distinction:12, agg_credit:18, agg_pass:24,
+    class_score_max:40, exam_score_max:60
+  },
+  percentage: {
+    grades: [
+      {min:80,letter:'A',point:1,remark:'Excellent'},
+      {min:70,letter:'B',point:2,remark:'Very Good'},
+      {min:60,letter:'C',point:3,remark:'Good'},
+      {min:50,letter:'D',point:4,remark:'Pass'},
+      {min:0, letter:'F',point:5,remark:'Fail'},
+    ],
+    aggregate_subjects:'best6', agg_distinction:5, agg_credit:10, agg_pass:15,
+    class_score_max:40, exam_score_max:60
+  },
+  primary: {
+    grades: [
+      {min:80,letter:'1',point:1,remark:'Excellent'},
+      {min:60,letter:'2',point:2,remark:'Good'},
+      {min:40,letter:'3',point:3,remark:'Fair'},
+      {min:0, letter:'4',point:4,remark:'Weak'},
+    ],
+    aggregate_subjects:'all', agg_distinction:6, agg_credit:10, agg_pass:16,
+    class_score_max:50, exam_score_max:50
+  }
+};
+
+// ── Grade colour palette ──────────────────────────────────────────────────────
+var PALETTE = [
+  ['#1B5E20','#DCEDC8'],['#1B5E20','#C8E6C9'],['#2E7D32','#E8F5E9'],
+  ['#1565C0','#E3F2FD'],['#1565C0','#E8F0FE'],['#1565C0','#EDE7F6'],
+  ['#E65100','#FFF3E0'],['#BF360C','#FBE9E7'],['#B71C1C','#FFCDD2'],
+];
+function gradeColors(idx){
+  return PALETTE[idx] || ['#333','#f0f0f0'];
+}
+
+// ── Render grade table ────────────────────────────────────────────────────────
+function renderGradeTable(grades){
+  var tbody = document.getElementById('grades-tbody');
+  tbody.innerHTML = '';
+  // Sort high→low
+  grades = grades.slice().sort(function(a,b){ return b.min - a.min; });
+  grades.forEach(function(g, i){
+    var c = gradeColors(i);
+    var row = document.createElement('tr');
+    row.className = 'gr-row';
+    row.setAttribute('data-idx', i);
+    row.innerHTML =
+      '<td><input class="gr-inp" style="width:80px" data-field="letter" value="'+esc(g.letter)+'" oninput="updatePreview(this)"></td>' +
+      '<td><input class="gr-inp" style="width:70px;text-align:center" type="number" data-field="min" value="'+g.min+'" min="0" max="100"></td>' +
+      '<td><input class="gr-inp" style="width:60px;text-align:center" type="number" data-field="point" value="'+g.point+'" min="1" max="99"></td>' +
+      '<td><input class="gr-inp" data-field="remark" value="'+esc(g.remark)+'"></td>' +
+      '<td style="text-align:center"><span class="gr-preview" style="color:'+c[0]+';background:'+c[1]+'">'+esc(g.letter)+'</span></td>' +
+      '<td><button type="button" onclick="removeGradeRow(this)" style="background:none;border:none;cursor:pointer;font-size:15px;color:#B71C1C" title="Remove">✕</button></td>';
+    tbody.appendChild(row);
+  });
+}
+
+function updatePreview(inp){
+  var row = inp.closest('tr');
+  row.querySelector('.gr-preview').textContent = inp.value.toUpperCase().trim() || '?';
+  inp.value = inp.value.toUpperCase();
+}
+
+function addGradeRow(){
+  var grades = collectGrades();
+  grades.push({min:0, letter:'?', point:grades.length+1, remark:'New grade'});
+  renderGradeTable(grades);
+}
+
+function removeGradeRow(btn){
+  var row = btn.closest('tr');
+  if(document.querySelectorAll('#grades-tbody tr').length<=1){
+    toast('❌ You need at least one grade band','err'); return;
+  }
+  row.style.opacity='0'; row.style.transition='opacity .2s';
+  setTimeout(function(){ row.remove(); }, 200);
+}
+
+function collectGrades(){
+  var rows = document.querySelectorAll('#grades-tbody tr');
+  var grades = [];
+  rows.forEach(function(row){
+    grades.push({
+      letter: row.querySelector('[data-field="letter"]').value.trim().toUpperCase(),
+      min:    parseFloat(row.querySelector('[data-field="min"]').value) || 0,
+      point:  parseInt(row.querySelector('[data-field="point"]').value) || 1,
+      remark: row.querySelector('[data-field="remark"]').value.trim()
+    });
+  });
+  return grades;
+}
+
+// ── Score split check ─────────────────────────────────────────────────────────
+function checkSplit(){
+  var cs = parseInt(document.getElementById('cs-max').value)||0;
+  var es = parseInt(document.getElementById('es-max').value)||0;
+  var tot = cs+es;
+  document.getElementById('split-total').textContent = tot;
+  document.getElementById('split-total').style.color = tot===100 ? 'var(--p)' : '#B71C1C';
+  document.getElementById('split-warning').style.display = tot===100 ? 'none' : 'block';
+}
+
+// ── Presets ───────────────────────────────────────────────────────────────────
+function togglePresets(){
+  var m = document.getElementById('presets-menu');
+  m.style.display = m.style.display==='none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('[onclick="togglePresets()"]') && !e.target.closest('#presets-menu')){
+    var m = document.getElementById('presets-menu');
+    if(m) m.style.display='none';
+  }
+});
+
+function loadPreset(name){
+  var p = PRESETS[name];
+  if(!p) return;
+  document.getElementById('presets-menu').style.display='none';
+  renderGradeTable(p.grades);
+  document.getElementById('cs-max').value = p.class_score_max;
+  document.getElementById('es-max').value = p.exam_score_max;
+  document.getElementById('agg-subjects').value = p.aggregate_subjects;
+  document.getElementById('agg-distinction').value = p.agg_distinction;
+  document.getElementById('agg-credit').value = p.agg_credit;
+  document.getElementById('agg-pass').value = p.agg_pass;
+  checkSplit();
+  toast('✅ Preset loaded — click Save to apply');
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+function saveGrading(){
+  var grades = collectGrades();
+  var cs = parseInt(document.getElementById('cs-max').value)||0;
+  var es = parseInt(document.getElementById('es-max').value)||0;
+  if(cs+es !== 100){ toast('❌ Class + Exam scores must equal 100','err'); return; }
+  if(grades.length < 2){ toast('❌ Need at least 2 grade bands','err'); return; }
+  var d = parseInt(document.getElementById('agg-distinction').value);
+  var cr = parseInt(document.getElementById('agg-credit').value);
+  var p = parseInt(document.getElementById('agg-pass').value);
+  if(d >= cr || cr >= p){ toast('❌ Thresholds must be: Distinction < Credit < Pass','err'); return; }
+
+  var payload = {
+    grades: grades,
+    aggregate_subjects: document.getElementById('agg-subjects').value,
+    agg_distinction: d, agg_credit: cr, agg_pass: p,
+    class_score_max: cs, exam_score_max: es
+  };
+  fetch('/school/settings/grading', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      toast('✅ Grading system saved!');
+      document.getElementById('gs-mode-badge').textContent='Custom';
+    } else {
+      toast('❌ '+d.message,'err');
+    }
+  }).catch(function(e){ toast('❌ '+e.message,'err'); });
+}
+
+// ── Reset to WAEC ─────────────────────────────────────────────────────────────
+function resetGrading(){
+  if(!confirm('Reset to WAEC default grading? Your custom scale will be deleted.')) return;
+  fetch('/school/settings/grading/reset', {method:'POST'})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      loadPreset('waec');
+      document.getElementById('gs-mode-badge').textContent='WAEC Default';
+      toast('✅ Reset to WAEC defaults');
+    } else { toast('❌ '+d.message,'err'); }
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s){ var d=document.createElement('div'); d.textContent=String(s||''); return d.innerHTML; }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+  renderGradeTable(currentScale.grades || []);
+  checkSplit();
+  // Mark badge
+  var isDefault = JSON.stringify(currentScale.grades||[]).includes('"A1"');
+  // (we always show current state, badge was set server-side)
+});
+
+// ── Classes/Subjects JS (unchanged) ──────────────────────────────────────────
+var toastTimer;
+function toast(msg, type){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'st '+(type||'ok');
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display='none'; }, 3500);
+}
+
+function startEdit(type, id){
+  document.querySelectorAll('.mgr-row.editing').forEach(function(r){
+    var parts = r.id.split('-');
+    cancelEdit(parts[0], parseInt(parts[2]));
+  });
+  document.getElementById(type+'-row-'+id).classList.add('editing');
+  var first = document.querySelector('#'+type+'-row-'+id+' .edit-mode input, #'+type+'-row-'+id+' .edit-mode select');
+  if(first) first.focus();
+}
+function cancelEdit(type, id){
+  document.getElementById(type+'-row-'+id).classList.remove('editing');
+}
+
+function saveClass(id){
+  var name    = document.getElementById('cls-name-'+id).value.trim();
+  var level   = document.getElementById('cls-level-'+id).value;
+  var cap     = document.getElementById('cls-cap-'+id).value;
+  var teacher = document.getElementById('cls-teacher-'+id).value;
+  if(!name){ toast('Class name is required','err'); return; }
+  var fd = new FormData();
+  fd.append('name',name); fd.append('level',level);
+  fd.append('capacity',cap); fd.append('teacher_id',teacher);
+  fetch('/school/settings/class/'+id+'/edit',{method:'POST',body:fd})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      var row=document.getElementById('cls-row-'+id);
+      var vm=row.querySelector('.view-mode');
+      var ts=document.getElementById('cls-teacher-'+id);
+      var tn=ts.options[ts.selectedIndex].text;
+      vm.querySelector('.mgr-name').textContent=name;
+      vm.querySelector('.badge').textContent=level;
+      vm.querySelector('.mgr-muted').textContent='Cap: '+cap+' · '+(tn==='— No teacher —'?'—':tn);
+      cancelEdit('cls',id); toast('✅ Class updated');
+    } else { toast('❌ '+d.message,'err'); }
+  }).catch(function(e){ toast('❌ '+e.message,'err'); });
+}
+
+function deleteClass(id,name){
+  if(!confirm('Delete class "'+name+'"?\nThis cannot be undone.')) return;
+  fetch('/school/settings/class/'+id+'/delete',{method:'POST'})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      var row=document.getElementById('cls-row-'+id);
+      row.style.transition='opacity .3s'; row.style.opacity='0';
+      setTimeout(function(){ row.remove(); },320);
+      toast('🗑️ "'+name+'" deleted');
+    } else { toast('❌ '+d.message,'err'); }
+  }).catch(function(e){ toast('❌ '+e.message,'err'); });
+}
+
+function saveSubject(id){
+  var name=document.getElementById('subj-name-'+id).value.trim();
+  var code=document.getElementById('subj-code-'+id).value.trim().toUpperCase();
+  var core=document.getElementById('subj-core-'+id).value;
+  if(!name){ toast('Subject name is required','err'); return; }
+  if(!code){ toast('Subject code is required','err'); return; }
+  var fd=new FormData();
+  fd.append('name',name); fd.append('code',code); fd.append('is_core',core);
+  fetch('/school/settings/subject/'+id+'/edit',{method:'POST',body:fd})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      var row=document.getElementById('subj-row-'+id);
+      var vm=row.querySelector('.view-mode');
+      var badges=vm.querySelectorAll('.badge');
+      vm.querySelector('.mgr-name').textContent=name;
+      badges[0].textContent=code;
+      badges[1].textContent=core==='1'?'Core':'Elective';
+      badges[1].className='badge '+(core==='1'?'bg':'bo')+' mgr-badge';
+      badges[1].style.fontSize='10px';
+      cancelEdit('subj',id); toast('✅ Subject updated');
+    } else { toast('❌ '+d.message,'err'); }
+  }).catch(function(e){ toast('❌ '+e.message,'err'); });
+}
+
+function deleteSubject(id,name){
+  if(!confirm('Delete subject "'+name+'"?\nThis cannot be undone.')) return;
+  fetch('/school/settings/subject/'+id+'/delete',{method:'POST'})
+  .then(r=>r.json()).then(function(d){
+    if(d.status==='ok'){
+      var row=document.getElementById('subj-row-'+id);
+      row.style.transition='opacity .3s'; row.style.opacity='0';
+      setTimeout(function(){ row.remove(); },320);
+      toast('🗑️ "'+name+'" deleted');
+    } else { toast('❌ '+d.message,'err'); }
+  }).catch(function(e){ toast('❌ '+e.message,'err'); });
+}
+
+function previewLogo(input){
+  if(input.files && input.files[0]){
+    var r=new FileReader();
+    r.onload=function(e){
+      var prev=document.getElementById('logo-preview');
+      if(prev.tagName==='IMG'){ prev.src=e.target.result; }
+      else {
+        var img=document.createElement('img');
+        img.src=e.target.result;
+        img.style='width:80px;height:80px;object-fit:contain;border:2px solid var(--mint);border-radius:10px;display:block;margin:0 auto 8px';
+        img.id='logo-preview'; prev.replaceWith(img);
+      }
+    };
+    r.readAsDataURL(input.files[0]);
+  }
+}
+
+document.addEventListener('input', function(e){
+  if(e.target && e.target.placeholder && e.target.placeholder.includes('Code')){
+    var v=e.target.value; var p=e.target.selectionStart;
+    e.target.value=v.toUpperCase(); e.target.setSelectionRange(p,p);
+  }
+});
+</script>
+{% endblock %}

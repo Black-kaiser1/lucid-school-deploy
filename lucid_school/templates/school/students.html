@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+{% block title %}Students{% endblock %}
+{% block page_title %}👨‍🎓 Students{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Slide panel ─────────────────────────────────────────── */
+.slide-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300}
+.slide-overlay.show{display:block}
+.slide-panel{
+  position:fixed;top:0;right:-520px;width:500px;max-width:95vw;
+  height:100vh;background:#fff;z-index:301;
+  box-shadow:-8px 0 40px rgba(0,0,0,.18);
+  transition:right .28s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;overflow:hidden
+}
+.slide-panel.open{right:0}
+.sp-head{padding:18px 22px;background:var(--p);color:#fff;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.sp-head h2{margin:0;font-size:16px;font-weight:700;flex:1}
+.sp-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px}
+.sp-body{flex:1;overflow-y:auto;padding:20px 22px}
+.sp-sec{font-size:10.5px;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;padding-bottom:4px;border-bottom:1.5px solid var(--light)}
+.sp-sec:first-child{margin-top:0}
+.sp-foot{padding:14px 22px;border-top:1px solid #e8f5e9;display:flex;gap:10px;flex-shrink:0;background:#f8fff9}
+
+/* ── Delete popup ────────────────────────────────────────── */
+.del-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center}
+.del-overlay.show{display:flex}
+.del-box{background:#fff;border-radius:14px;padding:28px 30px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
+.del-name{font-size:16px;font-weight:700;color:var(--dark);margin:10px 0 4px}
+.del-sub{font-size:12.5px;color:var(--muted);margin-bottom:20px}
+.del-opts{display:flex;flex-direction:column;gap:10px}
+.del-soft{background:#FFF3E0;color:#E65100;border:1.5px solid #FFCC80;padding:12px 16px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif}
+.del-soft:hover{background:#FFE0B2}
+.del-hard{background:#FFEBEE;color:#B71C1C;border:1.5px solid #FFCDD2;padding:12px 16px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif}
+.del-hard:hover{background:#FFCDD2}
+.del-cancel{background:#f5f5f5;color:var(--muted);border:none;padding:10px;border-radius:9px;cursor:pointer;font-size:12.5px;font-family:'DM Sans',sans-serif}
+
+/* ── Photo ───────────────────────────────────────────────── */
+.photo-ring{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--mint);cursor:pointer;display:block;margin:0 auto}
+.photo-ph{width:80px;height:80px;border-radius:50%;background:var(--light);border:3px dashed var(--mint);display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;margin:0 auto}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Slide overlay -->
+<div class="slide-overlay" id="slideOverlay" onclick="closePanel()"></div>
+
+<!-- Add / Edit slide panel -->
+<div class="slide-panel" id="slidePanel">
+  <div class="sp-head">
+    <span id="panelIcon" style="font-size:22px">➕</span>
+    <h2 id="panelTitle">Add New Student</h2>
+    <button class="sp-close" onclick="closePanel()">✕</button>
+  </div>
+  <div class="sp-body">
+    <form id="stuForm" method="post" enctype="multipart/form-data">
+
+      <!-- Photo -->
+      <div style="text-align:center;margin-bottom:14px">
+        <div id="photoPh" class="photo-ph" onclick="document.getElementById('photoInput').click()">📷</div>
+        <img id="photoPreview" class="photo-ring" style="display:none"
+             onclick="document.getElementById('photoInput').click()" src="">
+        <input type="file" name="photo" id="photoInput" accept="image/*"
+               style="display:none" onchange="previewPhoto(this)">
+        <div style="font-size:10px;color:var(--muted);margin-top:5px">Click to upload · JPG/PNG max 5MB</div>
+      </div>
+
+      <div class="sp-sec">📋 Student Details</div>
+      <div class="grid-2">
+        <div class="fg">
+          <label>Student ID
+            <span id="autoIdBadge" style="background:#DCEDC8;color:#1B5E20;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px">AUTO</span>
+          </label>
+          <div style="display:flex;gap:6px">
+            <input name="student_id" id="stuId"
+                   style="flex:1;background:#f0fbf4;font-weight:600;color:#1B4332" readonly>
+            <button type="button" class="btn btn-o btn-sm"
+                    onclick="toggleIdEdit()" title="Edit ID">✏️</button>
+          </div>
+        </div>
+        <div class="fg">
+          <label>Class *</label>
+          <select name="class_id" id="stuClass" required>
+            <option value="">Select class…</option>
+            {% for cls in classes %}
+            <option value="{{ cls.id }}">{{ cls.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg"><label>First Name *</label>
+          <input name="first_name" id="stuFirst" required placeholder="e.g. Kwame"></div>
+        <div class="fg"><label>Last Name *</label>
+          <input name="last_name" id="stuLast" required placeholder="e.g. Asante"></div>
+        <div class="fg"><label>Date of Birth</label>
+          <input name="date_of_birth" id="stuDob" type="date"></div>
+        <div class="fg"><label>Gender</label>
+          <select name="gender" id="stuGender">
+            <option value="">Select…</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sp-sec">👪 Parent / Guardian</div>
+      <div class="grid-2">
+        <div class="fg"><label>Parent/Guardian Name</label>
+          <input name="parent_name" id="stuPname" placeholder="e.g. Mr. Asante"></div>
+        <div class="fg"><label>Phone</label>
+          <input name="parent_phone" id="stuPhone" placeholder="0244123456"></div>
+        <div class="fg"><label>Email (for report cards)</label>
+          <input name="parent_email" id="stuEmail" type="email"
+                 placeholder="parent@gmail.com"></div>
+        <div class="fg"><label>WhatsApp Number</label>
+          <input name="parent_whatsapp" id="stuWa" placeholder="0244123456"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Home Address</label>
+          <input name="address" id="stuAddr"></div>
+        <div class="fg"><label>School Fees Amount (GH₵)</label>
+          <input name="fee_amount" id="stuFee" type="number" step="0.01"
+                 value="500" placeholder="500.00"></div>
+      </div>
+
+    </form>
+  </div>
+  <div class="sp-foot">
+    <button class="btn btn-p" style="flex:1" onclick="submitStu()">
+      <span id="submitLabel">➕ Add Student</span>
+    </button>
+    <button class="btn btn-o" onclick="closePanel()">Cancel</button>
+  </div>
+</div>
+
+<!-- Delete popup -->
+<div class="del-overlay" id="delOverlay">
+  <div class="del-box">
+    <div style="font-size:32px">⚠️</div>
+    <div class="del-name" id="delName">Student Name</div>
+    <div class="del-sub">Choose how to remove this student:</div>
+    <div class="del-opts">
+      <button class="del-soft" onclick="submitDelete(false)">
+        📦 Deactivate — hide from lists, keep all records &amp; scores
+      </button>
+      <button class="del-hard" onclick="submitDelete(true)">
+        🗑️ Permanently Delete — removes ALL scores, fees &amp; data forever
+      </button>
+      <button class="del-cancel" onclick="closeDelete()">Cancel</button>
+    </div>
+  </div>
+</div>
+<form id="delForm" method="post" style="display:none">
+  <input type="hidden" name="hard_delete" id="delHard" value="0">
+</form>
+
+<!-- Filter bar -->
+<div class="fbar">
+  <form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1">
+    <select name="class_id" class="fbar select" onchange="this.form.submit()">
+      <option value="">All Classes</option>
+      {% for cls in classes %}
+      <option value="{{ cls.id }}" {% if class_filter|string==cls.id|string %}selected{% endif %}>{{ cls.name }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="q" value="{{ search }}"
+           placeholder="🔍 Search name or ID…"
+           style="padding:6px 9px;border:1.5px solid #d1e8d8;border-radius:7px;font-size:12.5px;width:200px">
+    <button type="submit" class="btn btn-p btn-sm">Search</button>
+    {% if class_filter or search %}
+    <a href="{{ url_for('students') }}" class="btn btn-o btn-sm">✕ Clear</a>
+    {% endif %}
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;margin-left:4px">
+      <input type="checkbox" name="show_inactive" value="1"
+             {% if show_inactive %}checked{% endif %} onchange="this.form.submit()">
+      Show inactive
+    </label>
+  </form>
+  <button class="btn btn-p" onclick="openAdd()">➕ Add Student</button>
+</div>
+
+<!-- Students table -->
+<div class="card">
+  <div class="card-title">
+    👨‍🎓 Students
+    <span class="badge bk" style="margin-left:6px">{{ students|length }}</span>
+    {% if show_inactive %}
+    <span class="badge bo" style="margin-left:6px;font-size:10px">Showing inactive</span>
+    {% endif %}
+  </div>
+  <div class="tw">
+  <table>
+    <thead>
+      <tr>
+        <th>Photo</th><th>ID</th><th>Full Name</th><th>Class</th>
+        <th>Gender</th><th>Parent / Guardian</th><th>Phone</th><th>Status</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for s in students %}
+    <tr style="{% if not s.is_active %}opacity:.55{% endif %}">
+      <td>
+        {% if s.photo_path %}
+          <img src="/uploads/photos/{{ s.photo_path }}"
+               style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--mint)"
+               onerror="this.style.display='none'">
+        {% else %}
+          <div style="width:34px;height:34px;border-radius:50%;background:var(--light);border:2px solid var(--mint);display:flex;align-items:center;justify-content:center;font-size:16px">
+            {{ '👦' if s.gender=='Male' else '👧' if s.gender=='Female' else '👤' }}
+          </div>
+        {% endif %}
+      </td>
+      <td><span class="badge bk">{{ s.student_id }}</span></td>
+      <td><strong>{{ s.first_name }} {{ s.last_name }}</strong></td>
+      <td><span class="badge bb">{{ s.class_name or '—' }}</span></td>
+      <td>{{ s.gender or '—' }}</td>
+      <td style="font-size:12px">
+        {{ s.parent_name or '—' }}
+        {% if s.parent_email %}
+        <div style="font-size:10.5px;color:var(--muted)">{{ s.parent_email }}</div>
+        {% endif %}
+      </td>
+      <td style="font-size:12px">{{ s.parent_phone or '—' }}</td>
+      <td>
+        {% if s.is_active %}
+        <span class="badge bg" style="font-size:10px">Active</span>
+        {% else %}
+        <span class="badge bo" style="font-size:10px">Inactive</span>
+        {% endif %}
+      </td>
+      <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <a href="{{ url_for('student_profile', sid=s.id) }}"
+             class="btn btn-p btn-sm" title="View Profile">👤</a>
+          <button class="btn btn-o btn-sm" title="Edit"
+                  onclick='openEdit({{ s.id }}, {{ s|tojson }})'>✏️</button>
+          {% if not s.is_active %}
+          <form method="post" action="{{ url_for('reactivate_student', sid=s.id) }}" style="margin:0">
+            <button class="btn btn-sm"
+                    style="background:#E8F5E9;color:#1B5E20;border:1.5px solid #95D5B2"
+                    title="Reactivate">♻️</button>
+          </form>
+          {% endif %}
+          <button class="btn btn-r btn-sm" title="Remove"
+                  onclick="openDelete({{ s.id }}, '{{ (s.first_name ~ ' ' ~ s.last_name)|e }}',
+                           '/school/students/{{ s.id }}/delete')">🗑️</button>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted)">
+      No students found.
+      <span style="color:var(--p);cursor:pointer;text-decoration:underline"
+            onclick="openAdd()">Add one →</span>
+    </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var _editId = null;
+
+/* ── Open ADD ──────────────────────────────────────────────────────────────── */
+function openAdd(){
+  _editId = null;
+  document.getElementById('panelIcon').textContent = '➕';
+  document.getElementById('panelTitle').textContent = 'Add New Student';
+  document.getElementById('submitLabel').textContent = '➕ Add Student';
+  document.getElementById('autoIdBadge').style.display = 'inline';
+  document.getElementById('stuForm').action = '/school/students/add';
+  clearForm();
+
+  // Fetch auto-ID from server
+  fetch('/school/students/next-id')
+    .then(r=>r.json())
+    .then(function(d){
+      var inp = document.getElementById('stuId');
+      inp.value = d.id || '';
+      inp.readOnly = true;
+      inp.style.background = '#f0fbf4';
+    }).catch(function(){});
+
+  showPanel();
+}
+
+/* ── Open EDIT ─────────────────────────────────────────────────────────────── */
+function openEdit(id, s){
+  _editId = id;
+  document.getElementById('panelIcon').textContent = '✏️';
+  document.getElementById('panelTitle').textContent = 'Edit Student';
+  document.getElementById('submitLabel').textContent = '💾 Save Changes';
+  document.getElementById('autoIdBadge').style.display = 'none';
+  document.getElementById('stuForm').action = '/school/students/' + id + '/edit';
+  clearForm();
+
+  sv('stuId',     s.student_id   || '');
+  sv('stuFirst',  s.first_name   || '');
+  sv('stuLast',   s.last_name    || '');
+  sv('stuDob',    s.date_of_birth|| '');
+  sv('stuGender', s.gender       || '');
+  sv('stuClass',  s.class_id     || '');
+  sv('stuPname',  s.parent_name  || '');
+  sv('stuPhone',  s.parent_phone || '');
+  sv('stuEmail',  s.parent_email || '');
+  sv('stuWa',     s.parent_whatsapp || '');
+  sv('stuAddr',   s.address      || '');
+  sv('stuFee',    s.fee_amount   || '');
+
+  document.getElementById('stuId').readOnly = true;
+  document.getElementById('stuId').style.background = '#f5f5f5';
+
+  if(s.photo_path){
+    var pr = document.getElementById('photoPreview');
+    pr.src = '/uploads/photos/' + s.photo_path;
+    pr.style.display = 'block';
+    document.getElementById('photoPh').style.display = 'none';
+  }
+
+  showPanel();
+}
+
+/* ── Helpers ───────────────────────────────────────────────────────────────── */
+function sv(id, val){
+  var el = document.getElementById(id);
+  if(el) el.value = val;
+}
+
+function clearForm(){
+  ['stuFirst','stuLast','stuDob','stuPname','stuPhone',
+   'stuEmail','stuWa','stuAddr'].forEach(function(i){ sv(i,''); });
+  sv('stuGender',''); sv('stuClass',''); sv('stuFee','500'); sv('stuId','');
+  document.getElementById('photoPh').style.display = 'flex';
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('photoPreview').src = '';
+  document.getElementById('photoInput').value = '';
+}
+
+function showPanel(){
+  document.getElementById('slideOverlay').classList.add('show');
+  document.getElementById('slidePanel').classList.add('open');
+  document.querySelector('.sp-body').scrollTop = 0;
+  document.getElementById('stuFirst').focus();
+}
+
+function closePanel(){
+  document.getElementById('slideOverlay').classList.remove('show');
+  document.getElementById('slidePanel').classList.remove('open');
+}
+
+function submitStu(){
+  document.getElementById('stuForm').submit();
+}
+
+function toggleIdEdit(){
+  var inp = document.getElementById('stuId');
+  if(inp.readOnly){
+    inp.readOnly = false;
+    inp.style.background = '#FFF8E1';
+    inp.style.borderColor = '#D4A017';
+    inp.focus(); inp.select();
+  } else {
+    inp.readOnly = true;
+    inp.style.background = '#f0fbf4';
+    inp.style.borderColor = '#e2e8f0';
+  }
+}
+
+function previewPhoto(input){
+  if(input.files && input.files[0]){
+    var r = new FileReader();
+    r.onload = function(e){
+      var pr = document.getElementById('photoPreview');
+      pr.src = e.target.result;
+      pr.style.display = 'block';
+      document.getElementById('photoPh').style.display = 'none';
+    };
+    r.readAsDataURL(input.files[0]);
+  }
+}
+
+/* ── Delete popup ──────────────────────────────────────────────────────────── */
+function openDelete(id, name, action){
+  document.getElementById('delName').textContent = name;
+  document.getElementById('delForm').action = action;
+  document.getElementById('delOverlay').classList.add('show');
+}
+function closeDelete(){
+  document.getElementById('delOverlay').classList.remove('show');
+}
+function submitDelete(hard){
+  document.getElementById('delHard').value = hard ? '1' : '0';
+  document.getElementById('delForm').submit();
+}
+document.getElementById('delOverlay').addEventListener('click',function(e){
+  if(e.target===this) closeDelete();
+});
+</script>
+{% endblock %}

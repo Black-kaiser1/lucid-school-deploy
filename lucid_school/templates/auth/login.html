@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Login — Lucid School System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:linear-gradient(135deg,#0A1A10 0%,#1B4332 50%,#0A1A10 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-wrap{width:100%;max-width:420px}
+.logo-area{text-align:center;margin-bottom:28px}
+.logo-icon{width:64px;height:64px;background:#D4A017;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:28px;font-weight:900;color:#1B4332;margin-bottom:14px;box-shadow:0 8px 32px rgba(212,160,23,.35)}
+.logo-name{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:#fff;margin-bottom:4px}
+.logo-sub{font-size:12px;color:#95D5B2;letter-spacing:2px;text-transform:uppercase}
+.card{background:rgba(255,255,255,.97);border-radius:16px;padding:36px 32px;box-shadow:0 24px 80px rgba(0,0,0,.4)}
+.card-title{font-size:18px;font-weight:600;color:#1A1A2E;margin-bottom:6px}
+.card-sub{font-size:13px;color:#64748B;margin-bottom:24px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.form-group input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:'DM Sans',sans-serif;transition:.15s}
+.form-group input:focus{border-color:#1B4332;outline:none;box-shadow:0 0 0 3px rgba(27,67,50,.1)}
+.btn-login{width:100%;padding:12px;background:#1B4332;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:.15s;margin-top:4px}
+.btn-login:hover{background:#2D6A4F}
+.alert{padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px;background:#FFCDD2;color:#B71C1C;border-left:4px solid #B71C1C}
+.demo-box{margin-top:20px;padding:14px;background:#F0FBF4;border-radius:9px;border:1px solid #95D5B2;font-size:12px;color:#2D6A4F}
+.demo-box strong{color:#1B4332}
+.footer{text-align:center;margin-top:20px;font-size:11px;color:rgba(149,213,178,.7)}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="logo-area">
+    <div class="logo-icon">L</div>
+    <div class="logo-name">Lucid School System</div>
+    <div class="logo-sub">Powered by Lucid IT Hub</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Welcome back 👋</div>
+    <div class="card-sub">Sign in to access your school dashboard</div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="post">
+      <div class="form-group">
+        <label>Username</label>
+        <input name="username" placeholder="Enter your username" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input name="password" type="password" placeholder="Enter your password" required>
+      </div>
+      <button type="submit" class="btn-login">Sign In →</button>
+    </form>
+    <div class="demo-box">
+      <strong>🔑 Demo Credentials</strong><br>
+      Platform Admin: <strong>superadmin</strong> / <strong>admin123</strong><br>
+      School Admin: <strong>schooladmin</strong> / <strong>school123</strong>
+    </div>
+  </div>
+  <div class="footer">
+    © 2025 Lucid IT Hub &nbsp;|&nbsp; 0542 361 753 / 0207 923 981
+  </div>
+</div>
+</body>
+</html>

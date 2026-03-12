@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}{% if student %}Edit{% else %}Add{% endif %} Student{% endblock %}
+{% block page_title %}{% if student %}✏️ Edit Student{% else %}➕ Add Student{% endif %}{% endblock %}
+{% block extra_css %}
+<style>
+.photo-preview{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--mint);display:block;margin:0 auto 10px}
+.photo-placeholder{width:100px;height:100px;border-radius:50%;background:var(--light);border:3px dashed var(--mint);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 10px;cursor:pointer}
+</style>
+{% endblock %}
+{% block content %}
+<div class="card" style="max-width:780px">
+  <div class="card-title">Student Details</div>
+  <form method="post" enctype="multipart/form-data">
+    <div style="display:grid;grid-template-columns:120px 1fr;gap:20px">
+      <!-- Photo upload -->
+      <div style="text-align:center">
+        {% if student and student.photo_path %}
+          <img src="/uploads/photos/{{ student.photo_path }}" class="photo-preview" id="photoPreview">
+        {% else %}
+          <div class="photo-placeholder" onclick="document.getElementById('photoInput').click()">📷</div>
+        {% endif %}
+        <input type="file" name="photo" id="photoInput" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+        <button type="button" class="btn btn-o btn-sm" style="width:100%" onclick="document.getElementById('photoInput').click()">📷 Photo</button>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">JPG/PNG max 5MB</div>
+      </div>
+
+      <!-- Fields -->
+      <div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Student ID
+              {% if not student %}<span style="background:#DCEDC8;color:#1B5E20;font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px">AUTO</span>{% endif %}
+            </label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input name="student_id" id="stu_id_input"
+                     value="{{ student.student_id if student else auto_id }}"
+                     {% if student %}readonly style="background:#f5f5f5;flex:1"{% else %}readonly id="stu_id_input" style="background:#f0fbf4;flex:1;font-weight:600;color:#1B4332"{% endif %}>
+              {% if not student %}
+              <button type="button" class="btn btn-o btn-sm" onclick="toggleIdEdit()" title="Edit manually">✏️</button>
+              <button type="button" class="btn btn-o btn-sm" onclick="document.getElementById('stu_id_input').value='{{ auto_id }}';document.getElementById('stu_id_input').readOnly=true;document.getElementById('stu_id_input').style.background='#f0fbf4'" title="Reset to auto">🔄</button>
+              {% endif %}
+            </div>
+            <span style="font-size:10px;color:var(--muted)">{% if not student %}Auto-assigned from school prefix. Click ✏️ to customise.{% endif %}</span>
+          </div>
+          <div class="fg"><label>Class *</label>
+            <select name="class_id" required>
+              <option value="">Select class...</option>
+              {% for cls in classes %}
+              <option value="{{ cls.id }}" {% if student and student.class_id==cls.id %}selected{% endif %}>{{ cls.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="fg"><label>First Name *</label><input name="first_name" value="{{ student.first_name if student else '' }}" required></div>
+          <div class="fg"><label>Last Name *</label><input name="last_name" value="{{ student.last_name if student else '' }}" required></div>
+          <div class="fg"><label>Date of Birth</label><input name="date_of_birth" type="date" value="{{ student.date_of_birth if student else '' }}"></div>
+          <div class="fg"><label>Gender</label>
+            <select name="gender">
+              <option value="">Select...</option>
+              <option {% if student and student.gender=='Male' %}selected{% endif %}>Male</option>
+              <option {% if student and student.gender=='Female' %}selected{% endif %}>Female</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr style="margin:16px 0;border-color:#e2e8f0">
+    <div class="card-title" style="margin-bottom:12px">👪 Parent / Guardian</div>
+    <div class="grid-2">
+      <div class="fg"><label>Parent/Guardian Name</label><input name="parent_name" value="{{ student.parent_name if student else '' }}"></div>
+      <div class="fg"><label>Phone</label><input name="parent_phone" value="{{ student.parent_phone if student else '' }}" placeholder="0244123456"></div>
+      <div class="fg"><label>Email (for report cards) *</label><input name="parent_email" type="email" value="{{ student.parent_email if student else '' }}" placeholder="parent@gmail.com" required></div>
+      <div class="fg"><label>WhatsApp Number</label><input name="parent_whatsapp" value="{{ student.parent_whatsapp if student else '' }}" placeholder="0244123456"></div>
+      <div class="fg" style="grid-column:1/-1"><label>Home Address</label><input name="address" value="{{ student.address if student else '' }}"></div>
+      <div class="fg"><label>School Fees Amount (GH₵)</label><input name="fee_amount" type="number" step="0.01" value="{{ student.fee_amount if student else '500' }}" placeholder="500.00"></div>
+    </div>
+
+    <div style="margin-top:18px;display:flex;gap:10px">
+      <button type="submit" class="btn btn-p">{% if student %}💾 Save Changes{% else %}➕ Add Student{% endif %}</button>
+      <a href="{{ url_for('students') }}" class="btn btn-o">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleIdEdit(){
+  var inp = document.getElementById('stu_id_input');
+  if(inp.readOnly){
+    inp.readOnly = false;
+    inp.style.background = '#FFF8E1';
+    inp.style.borderColor = '#D4A017';
+    inp.focus(); inp.select();
+  } else {
+    inp.readOnly = true;
+    inp.style.background = '#f0fbf4';
+    inp.style.borderColor = '#e2e8f0';
+  }
+}
+function previewPhoto(input){
+  if(input.files&&input.files[0]){
+    var r=new FileReader();
+    r.onload=function(e){
+      var prev=document.getElementById('photoPreview');
+      if(!prev){
+        prev=document.createElement('img');
+        prev.id='photoPreview';
+        prev.className='photo-preview';
+        input.parentNode.insertBefore(prev,input);
+        input.previousSibling.style.display='none';
+      }
+      prev.src=e.target.result;
+      prev.style.display='block';
+    };
+    r.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

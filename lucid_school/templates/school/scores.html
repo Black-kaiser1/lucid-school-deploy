@@ -1,0 +1,721 @@
+{% extends 'base.html' %}
+{% block title %}Scores — {{ school.name }}{% endblock %}
+{% block page_title %}📝 Score Entry{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ────────────────────────────────────── */
+.score-wrap { display: grid; grid-template-columns: 1fr 320px; gap: 14px; align-items: start; }
+.score-main { min-width: 0; }
+
+/* ── Filter bar ─────────────────────────────────── */
+.score-filter {
+  background: var(--light); border: 1px solid var(--mint);
+  border-radius: 10px; padding: 12px 14px;
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.score-filter select, .score-filter input {
+  padding: 7px 10px; border: 1.5px solid #d1e8d8;
+  border-radius: 7px; font-size: 12.5px;
+  font-family: 'DM Sans', sans-serif; background: #fff;
+}
+
+/* ── Table ──────────────────────────────────────── */
+.score-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; }
+.score-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.score-table thead th {
+  background: var(--p); color: #fff; padding: 8px 6px;
+  text-align: center; font-size: 10.5px; font-weight: 600;
+  position: sticky; top: 0; z-index: 2; white-space: nowrap;
+}
+.score-table thead th.th-name {
+  text-align: left; min-width: 150px; padding-left: 10px; z-index: 3;
+  position: sticky; left: 0; background: var(--p);
+}
+.score-table thead tr:nth-child(2) th { background: #2D6A4F; padding: 5px 4px; }
+.score-table tbody tr { border-bottom: 1px solid #f0f4f2; }
+.score-table tbody tr:hover { background: #f8fff9; }
+.score-table tbody td { padding: 5px 4px; vertical-align: middle; }
+.score-table tbody td.td-name {
+  padding-left: 10px; font-weight: 600; font-size: 12.5px;
+  position: sticky; left: 0; background: #fff; z-index: 1;
+  border-right: 2px solid #e2e8f0;
+}
+.score-table tbody tr:hover td.td-name { background: #f8fff9; }
+.score-table td.subj-sep { border-left: 2px solid #e8f5e9; }
+
+/* ── Score inputs ───────────────────────────────── */
+.sc { 
+  width: 48px; padding: 4px 3px; text-align: center;
+  border: 1.5px solid #e2e8f0; border-radius: 5px;
+  font-size: 11.5px; font-family: 'DM Sans', sans-serif;
+  transition: .12s; background: #fff;
+}
+.sc:focus { border-color: var(--p); outline: none; box-shadow: 0 0 0 2px rgba(27,67,50,.12); }
+.sc.changed { border-color: var(--s); background: #FFFDE7; }
+.sc.error   { border-color: #B71C1C; background: #FFEBEE; animation: shake .2s; }
+.sc.ok      { border-color: #22C55E; background: #F0FFF4; }
+@keyframes shake {
+  0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)}
+}
+
+/* ── Total column ───────────────────────────────── */
+.total-cell {
+  min-width: 62px; text-align: center; padding: 4px 6px;
+  border-left: 2px solid #e2e8f0;
+}
+.grade-pill {
+  display: inline-block; padding: 1px 5px;
+  border-radius: 8px; font-size: 9.5px; font-weight: 700;
+  margin-top: 1px;
+}
+
+/* ── Row summary ────────────────────────────────── */
+.row-summary { min-width: 110px; padding: 4px 8px; border-left: 2px solid #e2e8f0; }
+
+/* ── Right panel cards ──────────────────────────── */
+.panel-card {
+  background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 10px; padding: 16px; margin-bottom: 12px;
+}
+.panel-title {
+  font-size: 12.5px; font-weight: 600; color: var(--p);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+
+/* ── Save bar ───────────────────────────────────── */
+.save-bar {
+  position: sticky; bottom: 0; background: #fff;
+  border-top: 2px solid var(--mint); padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px;
+  z-index: 50; border-radius: 0 0 10px 10px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.06);
+}
+
+/* ── Validation toast ───────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  padding: 10px 16px; border-radius: 8px; font-size: 13px;
+  font-weight: 500; z-index: 1000; display: none;
+  max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+}
+.toast.success { background: #DCEDC8; color: #1B5E20; border-left: 4px solid #2D6A4F; }
+.toast.error   { background: #FFCDD2; color: #B71C1C; border-left: 4px solid #B71C1C; }
+.toast.warn    { background: #FFF8E1; color: #E65100; border-left: 4px solid #E65100; }
+
+/* ── CSV import panel ───────────────────────────── */
+.drop-zone {
+  border: 2px dashed #95D5B2; border-radius: 8px;
+  padding: 20px; text-align: center; cursor: pointer;
+  transition: .15s; background: var(--light);
+}
+.drop-zone:hover, .drop-zone.over { border-color: var(--p); background: #e8f5e9; }
+.drop-zone .dz-icon { font-size: 28px; margin-bottom: 6px; }
+.drop-zone .dz-label { font-size: 12px; color: var(--muted); }
+
+/* ── Legend ─────────────────────────────────────── */
+.legend { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 10.5px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Filter bar ─────────────────────────────────────── -->
+<div class="score-filter">
+  <form method="get" id="filterForm" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1">
+    <select name="class_id" onchange="this.form.submit()">
+      <option value="">📋 Select Class…</option>
+      {% for cls in classes %}
+      <option value="{{ cls.id }}" {% if class_filter|string==cls.id|string %}selected{% endif %}>
+        {{ cls.name }}
+      </option>
+      {% endfor %}
+    </select>
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}
+      <option value="{{ t }}" {% if term==t %}selected{% endif %}>Term {{ t }}</option>
+      {% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2024/2025','2023/2024'] %}
+      <option value="{{ yr }}" {% if academic_year==yr %}selected{% endif %}>{{ yr }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% if class_filter %}
+  <a href="{{ url_for('scores_csv_template', class_id=class_filter, term=term, year=academic_year) }}"
+     class="btn btn-s btn-sm" title="Download prefilled CSV for this class">
+    ⬇️ CSV Template
+  </a>
+  {% endif %}
+</div>
+
+{% if students %}
+<div class="score-wrap">
+
+  <!-- ── Score Grid ─────────────────────────────────── -->
+  <div class="score-main">
+
+    <!-- Grade legend -->
+    <div class="legend">
+      <span style="font-size:11px;color:var(--muted);font-weight:600;margin-right:4px">Grades:</span>
+      {% for grade,bg,fg in [('A1','#DCEDC8','#1B5E20'),('B2','#C8E6C9','#1B5E20'),('B3','#E8F5E9','#2E7D32'),('C4','#E3F2FD','#1565C0'),('C5','#E3F2FD','#1565C0'),('C6','#EDE7F6','#1565C0'),('D7','#FFF3E0','#E65100'),('E8','#FBE9E7','#BF360C'),('F9','#FFCDD2','#B71C1C')] %}
+      <div class="legend-item">
+        <div class="legend-dot" style="background:{{ bg }};border:1px solid {{ fg }}"></div>
+        <span style="color:{{ fg }}">{{ grade }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="score-table-wrap">
+    <table class="score-table" id="scoreGrid">
+      <thead>
+        <tr>
+          <th class="th-name" rowspan="2">Student</th>
+          {% for subj in subjects %}
+          <th colspan="3" style="border-left:2px solid rgba(255,255,255,.2)">{{ subj.code }}</th>
+          {% endfor %}
+          <th colspan="2" style="border-left:2px solid rgba(255,255,255,.25);background:rgba(0,0,0,.15)">Summary</th>
+        </tr>
+        <tr>
+          {% for subj in subjects %}
+          <th class="subj-sep" style="color:var(--mint);font-weight:500" title="{{ subj.name }} — Class Score (max 40)">CS</th>
+          <th style="color:var(--mint);font-weight:500" title="{{ subj.name }} — Exam Score (max 60)">ES</th>
+          <th style="color:var(--s);font-weight:600" title="{{ subj.name }} — Total">Tot</th>
+          {% endfor %}
+          <th style="color:var(--s);border-left:2px solid rgba(255,255,255,.25)">Grand</th>
+          <th style="color:var(--mint)">Pos</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in students %}
+      <tr data-sid="{{ s.id }}" data-name="{{ s.first_name }} {{ s.last_name }}">
+        <td class="td-name">
+          <div>{{ s.first_name }} {{ s.last_name }}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:400">{{ s.student_id }}</div>
+        </td>
+        {% for subj in subjects %}
+        <td class="subj-sep" style="padding:4px 2px">
+          <input type="number" class="sc cs-input"
+                 min="0" max="40" step="0.5"
+                 data-sid="{{ s.id }}" data-subjid="{{ subj.id }}" data-max="40"
+                 id="cs_{{ s.id }}_{{ subj.id }}"
+                 placeholder="0" autocomplete="off">
+        </td>
+        <td style="padding:4px 2px">
+          <input type="number" class="sc es-input"
+                 min="0" max="60" step="0.5"
+                 data-sid="{{ s.id }}" data-subjid="{{ subj.id }}" data-max="60"
+                 id="es_{{ s.id }}_{{ subj.id }}"
+                 placeholder="0" autocomplete="off">
+        </td>
+        <td class="total-cell" id="tot_{{ s.id }}_{{ subj.id }}">
+          <span style="color:var(--muted)">—</span>
+        </td>
+        {% endfor %}
+        <!-- Row summary -->
+        <td class="total-cell" id="grand_{{ s.id }}" style="font-weight:700;color:var(--p)">—</td>
+        <td class="total-cell" id="pos_{{ s.id }}" style="color:var(--muted)">—</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+      <!-- Class average row -->
+      <tfoot>
+        <tr style="background:var(--light);border-top:2px solid var(--mint)">
+          <td class="td-name" style="font-weight:700;color:var(--p);font-size:12px">Class Average</td>
+          {% for subj in subjects %}
+          <td class="subj-sep" colspan="2"></td>
+          <td class="total-cell" id="avg_{{ subj.id }}" style="font-weight:700;color:#2D6A4F;font-size:12px">—</td>
+          {% endfor %}
+          <td id="avg_grand" class="total-cell" style="font-weight:700;color:var(--p)">—</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+
+    <!-- Save bar -->
+    <div class="save-bar">
+      <span id="change-count" style="font-size:12px;color:var(--muted)">No unsaved changes</span>
+      <span style="flex:1"></span>
+      <button class="btn btn-o btn-sm" onclick="clearChanges()">↩️ Undo All</button>
+      <button class="btn btn-p" onclick="saveAll()" id="saveBtn">
+        💾 Save All Scores
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Right Panel ─────────────────────────────────── -->
+  <div>
+
+    <!-- Quick fill -->
+    <div class="panel-card">
+      <div class="panel-title">⚡ Quick Fill Column</div>
+      <p style="font-size:11.5px;color:var(--muted);margin-bottom:10px">
+        Fill one score value for ALL students in a subject at once.
+      </p>
+      <div class="fg" style="margin-bottom:8px">
+        <label>Subject</label>
+        <select id="qf_subj">
+          {% for subj in subjects %}
+          <option value="{{ subj.id }}" data-code="{{ subj.code }}">{{ subj.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg">
+          <label>Class Score (0–40)</label>
+          <input type="number" id="qf_cs" min="0" max="40" step="0.5" placeholder="e.g. 30">
+        </div>
+        <div class="fg">
+          <label>Exam Score (0–60)</label>
+          <input type="number" id="qf_es" min="0" max="60" step="0.5" placeholder="e.g. 45">
+        </div>
+      </div>
+      <button class="btn btn-s btn-sm" style="width:100%" onclick="quickFill()">
+        ⚡ Apply to All Students
+      </button>
+    </div>
+
+    <!-- Keyboard shortcuts -->
+    <div class="panel-card">
+      <div class="panel-title">⌨️ Keyboard Shortcuts</div>
+      <div style="font-size:11.5px;line-height:2">
+        <div><kbd style="background:#f4f4f4;padding:1px 5px;border-radius:3px;border:1px solid #ccc">Tab</kbd> — Next cell (left→right, top→bottom)</div>
+        <div><kbd style="background:#f4f4f4;padding:1px 5px;border-radius:3px;border:1px solid #ccc">Shift+Tab</kbd> — Previous cell</div>
+        <div><kbd style="background:#f4f4f4;padding:1px 5px;border-radius:3px;border:1px solid #ccc">Enter</kbd> — Move down same column</div>
+        <div><kbd style="background:#f4f4f4;padding:1px 5px;border-radius:3px;border:1px solid #ccc">Ctrl+S</kbd> — Save all</div>
+        <div style="margin-top:4px;color:var(--muted)">Red border = value out of range</div>
+      </div>
+    </div>
+
+    <!-- CSV bulk import -->
+    <div class="panel-card">
+      <div class="panel-title">📥 Bulk Import from CSV</div>
+      <ol style="font-size:11.5px;color:var(--muted);line-height:1.9;margin-bottom:12px;padding-left:16px">
+        <li>Download the CSV template above</li>
+        <li>Open in Excel / Google Sheets</li>
+        <li>Fill in Class Scores and Exam Scores</li>
+        <li>Save as CSV and upload here</li>
+      </ol>
+
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('csvFile').click()">
+        <div class="dz-icon">📂</div>
+        <div style="font-size:13px;font-weight:600;color:var(--p);margin-bottom:3px">Click to choose CSV</div>
+        <div class="dz-label">or drag & drop your file here</div>
+        <div id="dz-file-name" style="margin-top:6px;font-size:12px;font-weight:600;color:var(--p);display:none"></div>
+      </div>
+      <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="csvFileSelected(this)">
+
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn btn-p" style="flex:1" id="importBtn" onclick="doImport()" disabled>
+          📥 Import Scores
+        </button>
+        <button class="btn btn-o btn-sm" onclick="clearImport()">✕</button>
+      </div>
+
+      <div id="import-result" style="display:none;margin-top:10px;font-size:12px;border-radius:7px;padding:10px"></div>
+    </div>
+
+    <!-- Stats panel -->
+    <div class="panel-card" id="statsPanel">
+      <div class="panel-title">📊 Class Stats</div>
+      <div id="stats-content" style="font-size:12px;color:var(--muted)">
+        Enter scores to see live statistics.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% else %}
+<!-- No class selected -->
+<div class="card" style="text-align:center;padding:40px">
+  <div style="font-size:40px;margin-bottom:12px">📝</div>
+  <div style="font-size:15px;font-weight:600;color:var(--p);margin-bottom:6px">Select a Class to Begin</div>
+  <div style="font-size:13px;color:var(--muted)">Choose a class, term, and year from the filter bar above.</div>
+  {% if not classes %}
+  <div style="margin-top:14px">
+    <a href="{{ url_for('school_settings') }}" class="btn btn-p">⚙️ Add Classes First</a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<!-- Unsaved warning (browser native) -->
+<script>window._dirty=false; window.onbeforeunload=function(){if(window._dirty)return'You have unsaved scores. Leave anyway?';};</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Data from server ──────────────────────────────────────────────────────────
+var EXISTING  = {{ existing_scores|safe }};
+var TERM      = {{ term }};
+var YEAR      = "{{ academic_year }}";
+var CLASS_ID  = "{{ class_filter }}";
+var STUDENTS  = {{ students|map(attribute='id')|list|tojson }};
+var SUBJECTS  = {{ subjects|map(attribute='id')|list|tojson }};
+var SUBJ_CODES= {{ subjects|map(attribute='code')|list|tojson }};
+var CS_MAX    = {{ grade_scale.class_score_max if grade_scale else 40 }};
+var ES_MAX    = {{ grade_scale.exam_score_max  if grade_scale else 60 }};
+
+// ── Grade logic (scale from server) ──────────────────────────────────────────
+var GRADE_BANDS = {{ (grade_scale.grades if grade_scale else []) | tojson }};
+// Sorted high→low at render time
+GRADE_BANDS.sort(function(a,b){ return b.min - a.min; });
+
+// Colour palette: index-based so custom letter grades get sensible colours
+var PALETTE = [
+  ['#1B5E20','#DCEDC8'],['#1B5E20','#C8E6C9'],['#2E7D32','#E8F5E9'],
+  ['#1565C0','#E3F2FD'],['#1565C0','#E8F0FE'],['#1565C0','#EDE7F6'],
+  ['#E65100','#FFF3E0'],['#BF360C','#FBE9E7'],['#B71C1C','#FFCDD2'],
+];
+var GC = {};
+GRADE_BANDS.forEach(function(b,i){ GC[b.letter] = PALETTE[i] || ['#333','#f0f0f0']; });
+// Fallback WAEC colours for any unlisted letters
+var FALLBACK_GC = {
+  'A1':['#1B5E20','#DCEDC8'],'B2':['#1B5E20','#C8E6C9'],'B3':['#2E7D32','#E8F5E9'],
+  'C4':['#1565C0','#E3F2FD'],'C5':['#1565C0','#E8F0FE'],'C6':['#1565C0','#EDE7F6'],
+  'D7':['#E65100','#FFF3E0'],'E8':['#BF360C','#FBE9E7'],'F9':['#B71C1C','#FFCDD2']
+};
+Object.assign(FALLBACK_GC, GC);  GC = FALLBACK_GC;
+
+function grade(s){
+  for(var i=0;i<GRADE_BANDS.length;i++){
+    if(s >= GRADE_BANDS[i].min) return GRADE_BANDS[i].letter;
+  }
+  return GRADE_BANDS.length ? GRADE_BANDS[GRADE_BANDS.length-1].letter : 'F9';
+}
+function ordinal(n){var s={1:'st',2:'nd',3:'rd'};return n+(s[n%10]&&![11,12,13].includes(n%100)?s[n%10]:'th');}
+
+// ── Load existing scores ──────────────────────────────────────────────────────
+var changeCount = 0;
+document.addEventListener('DOMContentLoaded', function(){
+  Object.keys(EXISTING).forEach(function(k){
+    var p=k.split('_'); var sid=p[0]; var subjid=p[1]; var d=EXISTING[k];
+    var ci=document.getElementById('cs_'+sid+'_'+subjid);
+    var ei=document.getElementById('es_'+sid+'_'+subjid);
+    if(ci){ ci.value=d.cs; ci.classList.remove('changed'); ci.classList.add('ok'); }
+    if(ei){ ei.value=d.es; ei.classList.remove('changed'); ei.classList.add('ok'); }
+    updateTotal(sid,subjid,d.t);
+  });
+  recalcAllPositions();
+  recalcAverages();
+  setupKeyboard();
+});
+
+// ── Input validation & change tracking ───────────────────────────────────────
+document.addEventListener('input', function(e){
+  var inp = e.target;
+  if(!inp.classList.contains('sc')) return;
+  var max = parseFloat(inp.dataset.max);
+  var val = parseFloat(inp.value);
+  inp.classList.remove('ok','error','changed');
+  if(inp.value === ''){ /* blank is ok */ }
+  else if(isNaN(val) || val < 0 || val > max){
+    inp.classList.add('error');
+    showToast('❌ ' + (inp.classList.contains('cs-input') ? 'Class' : 'Exam') +
+              ' score must be 0–' + max, 'error', 2000);
+  } else {
+    inp.classList.add('changed');
+  }
+  var sid    = inp.dataset.sid;
+  var subjid = inp.dataset.subjid;
+  var cs = parseFloat(document.getElementById('cs_'+sid+'_'+subjid).value)||0;
+  var es = parseFloat(document.getElementById('es_'+sid+'_'+subjid).value)||0;
+  updateTotal(sid, subjid, cs+es);
+  recalcRowGrand(sid);
+  recalcAllPositions();
+  recalcAverages();
+  updateChangeCount();
+});
+
+function updateTotal(sid, subjid, total){
+  var cell = document.getElementById('tot_'+sid+'_'+subjid);
+  if(!cell) return;
+  if(!total && total!==0){ cell.innerHTML='<span style="color:var(--muted)">—</span>'; return; }
+  var g = grade(total);
+  var colors = GC[g] || ['#333','#fff'];
+  cell.innerHTML =
+    '<div style="font-weight:700;font-size:12px;color:'+colors[0]+'">'+total.toFixed(1)+'</div>' +
+    '<span class="grade-pill" style="background:'+colors[1]+';color:'+colors[0]+'">'+g+'</span>';
+}
+
+function recalcRowGrand(sid){
+  var total = 0; var count = 0;
+  SUBJECTS.forEach(function(subjid){
+    var cs = parseFloat(document.getElementById('cs_'+sid+'_'+subjid)?.value)||0;
+    var es = parseFloat(document.getElementById('es_'+sid+'_'+subjid)?.value)||0;
+    if(cs>0||es>0){ total += cs+es; count++; }
+  });
+  var cell = document.getElementById('grand_'+sid);
+  if(cell) cell.textContent = count>0 ? total.toFixed(1) : '—';
+}
+
+function recalcAllPositions(){
+  var totals = {};
+  STUDENTS.forEach(function(sid){
+    var t=0;
+    SUBJECTS.forEach(function(subjid){
+      var cs=parseFloat(document.getElementById('cs_'+sid+'_'+subjid)?.value)||0;
+      var es=parseFloat(document.getElementById('es_'+sid+'_'+subjid)?.value)||0;
+      t+=cs+es;
+    });
+    totals[sid]=t;
+  });
+  var sorted = Object.values(totals).filter(v=>v>0).sort((a,b)=>b-a);
+  STUDENTS.forEach(function(sid){
+    var cell = document.getElementById('pos_'+sid);
+    if(!cell) return;
+    var t = totals[sid];
+    if(!t){ cell.textContent='—'; cell.style.color='var(--muted)'; return; }
+    var pos = sorted.indexOf(t)+1;
+    cell.textContent = ordinal(pos);
+    cell.style.color = pos<=3?'#D4A017':'var(--muted)';
+    cell.style.fontWeight = pos<=3?'700':'400';
+  });
+}
+
+function recalcAverages(){
+  var subjTotals = {}; var subjCounts = {};
+  SUBJECTS.forEach(function(subjid){ subjTotals[subjid]=0; subjCounts[subjid]=0; });
+  var grandSum=0; var grandCount=0;
+  STUDENTS.forEach(function(sid){
+    var rowTotal=0; var rowCount=0;
+    SUBJECTS.forEach(function(subjid){
+      var cs=parseFloat(document.getElementById('cs_'+sid+'_'+subjid)?.value)||0;
+      var es=parseFloat(document.getElementById('es_'+sid+'_'+subjid)?.value)||0;
+      var t=cs+es;
+      if(t>0){ subjTotals[subjid]+=t; subjCounts[subjid]++; rowTotal+=t; rowCount++; }
+    });
+    if(rowCount>0){ grandSum+=rowTotal; grandCount++; }
+  });
+  SUBJECTS.forEach(function(subjid){
+    var cell=document.getElementById('avg_'+subjid);
+    if(!cell) return;
+    var avg = subjCounts[subjid]>0 ? (subjTotals[subjid]/subjCounts[subjid]) : null;
+    if(avg===null){ cell.textContent='—'; return; }
+    var g=grade(avg); var colors=GC[g]||['#333','#fff'];
+    cell.innerHTML='<span style="color:'+colors[0]+'">'+avg.toFixed(1)+'</span>';
+  });
+  var gc = document.getElementById('avg_grand');
+  if(gc) gc.textContent = grandCount>0 ? (grandSum/grandCount).toFixed(1) : '—';
+
+  // Update stats panel
+  updateStats(subjTotals, subjCounts, grandSum, grandCount);
+}
+
+function updateStats(subjTotals, subjCounts, grandSum, grandCount){
+  var box = document.getElementById('stats-content');
+  if(!box) return;
+  var n = STUDENTS.length;
+  var entered = STUDENTS.filter(function(sid){
+    return SUBJECTS.some(function(subjid){
+      var cs=parseFloat(document.getElementById('cs_'+sid+'_'+subjid)?.value)||0;
+      var es=parseFloat(document.getElementById('es_'+sid+'_'+subjid)?.value)||0;
+      return cs>0||es>0;
+    });
+  }).length;
+  var pct = n>0?Math.round(entered/n*100):0;
+  var avg = grandCount>0?(grandSum/grandCount).toFixed(1):'—';
+  box.innerHTML =
+    '<div style="display:flex;justify-content:space-between;margin-bottom:6px">' +
+      '<span>Students with scores</span><strong>'+entered+'/'+n+'</strong>' +
+    '</div>' +
+    '<div style="background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden;margin-bottom:8px">' +
+      '<div style="background:var(--p);height:100%;width:'+pct+'%;transition:.3s"></div>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between"><span>Class avg</span><strong>'+avg+'%</strong></div>';
+}
+
+function updateChangeCount(){
+  var n = document.querySelectorAll('.sc.changed').length;
+  window._dirty = n > 0;
+  var el = document.getElementById('change-count');
+  if(el){
+    el.textContent = n>0 ? n+' unsaved change'+(n>1?'s':'') : 'No unsaved changes';
+    el.style.color = n>0 ? '#E65100' : 'var(--muted)';
+  }
+  document.getElementById('saveBtn').style.background = n>0 ? '#E65100' : 'var(--p)';
+}
+
+function clearChanges(){
+  if(!confirm('Undo all unsaved changes and reload saved scores?')) return;
+  location.reload();
+}
+
+// ── Keyboard navigation ───────────────────────────────────────────────────────
+var allInputs = [];
+function setupKeyboard(){
+  allInputs = Array.from(document.querySelectorAll('.sc'));
+  allInputs.forEach(function(inp, idx){
+    inp.addEventListener('keydown', function(e){
+      if(e.key==='Enter'){
+        e.preventDefault();
+        // Move down the same column (every 2nd input = same subj next student)
+        var col = idx % (SUBJECTS.length * 2);
+        var nextRowIdx = idx + SUBJECTS.length * 2;
+        if(nextRowIdx < allInputs.length) allInputs[nextRowIdx].focus();
+        else allInputs[0].focus();
+      }
+    });
+  });
+  // Ctrl+S to save
+  document.addEventListener('keydown', function(e){
+    if(e.ctrlKey && e.key==='s'){ e.preventDefault(); saveAll(); }
+  });
+}
+
+// ── Quick fill ────────────────────────────────────────────────────────────────
+function quickFill(){
+  var subjid = document.getElementById('qf_subj').value;
+  var cs = document.getElementById('qf_cs').value;
+  var es = document.getElementById('qf_es').value;
+  if(cs===''&&es===''){ showToast('Enter at least one score value','warn'); return; }
+  var csVal = parseFloat(cs)||0; var esVal = parseFloat(es)||0;
+  if(csVal>40){ showToast('Class score max is 40','error'); return; }
+  if(esVal>60){ showToast('Exam score max is 60','error'); return; }
+  var count=0;
+  STUDENTS.forEach(function(sid){
+    var ci=document.getElementById('cs_'+sid+'_'+subjid);
+    var ei=document.getElementById('es_'+sid+'_'+subjid);
+    if(cs!==''&&ci){ ci.value=csVal; ci.classList.add('changed'); ci.classList.remove('error'); }
+    if(es!==''&&ei){ ei.value=esVal; ei.classList.add('changed'); ei.classList.remove('error'); }
+    updateTotal(sid, subjid, csVal+esVal);
+    recalcRowGrand(sid);
+    count++;
+  });
+  recalcAllPositions(); recalcAverages(); updateChangeCount();
+  showToast('⚡ Filled '+count+' students','success');
+}
+
+// ── Save all ──────────────────────────────────────────────────────────────────
+function saveAll(){
+  // Validate first — block save if any error inputs
+  var errors = document.querySelectorAll('.sc.error');
+  if(errors.length>0){
+    showToast('❌ Fix '+errors.length+' invalid score(s) before saving','error');
+    errors[0].focus(); errors[0].scrollIntoView({block:'center'}); return;
+  }
+  var rows=[];
+  STUDENTS.forEach(function(sid){
+    SUBJECTS.forEach(function(subjid){
+      var ci=document.getElementById('cs_'+sid+'_'+subjid);
+      var ei=document.getElementById('es_'+sid+'_'+subjid);
+      var cs=parseFloat(ci?.value)||0; var es=parseFloat(ei?.value)||0;
+      if(cs>0||es>0){
+        rows.push({student_id:sid,subject_id:subjid,term:TERM,academic_year:YEAR,class_score:cs,exam_score:es});
+      }
+    });
+  });
+  if(!rows.length){ showToast('No scores to save yet','warn'); return; }
+  var btn=document.getElementById('saveBtn');
+  btn.textContent='⏳ Saving…'; btn.disabled=true;
+  fetch('/school/scores/save',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({scores:rows})
+  }).then(r=>r.json()).then(function(d){
+    btn.disabled=false; btn.textContent='💾 Save All Scores';
+    if(d.status==='ok'){
+      document.querySelectorAll('.sc.changed').forEach(function(el){
+        el.classList.remove('changed'); el.classList.add('ok');
+      });
+      window._dirty=false; updateChangeCount();
+      showToast('✅ '+rows.length+' scores saved!','success');
+    } else {
+      showToast('❌ Save failed: '+d.message,'error');
+    }
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent='💾 Save All Scores';
+    showToast('❌ Network error: '+e.message,'error');
+  });
+}
+
+// ── CSV import ────────────────────────────────────────────────────────────────
+var importFile = null;
+function csvFileSelected(input){
+  if(input.files&&input.files[0]){
+    importFile=input.files[0];
+    document.getElementById('dz-file-name').textContent='📄 '+importFile.name;
+    document.getElementById('dz-file-name').style.display='block';
+    document.getElementById('importBtn').disabled=false;
+  }
+}
+function clearImport(){
+  importFile=null;
+  document.getElementById('csvFile').value='';
+  document.getElementById('dz-file-name').style.display='none';
+  document.getElementById('importBtn').disabled=true;
+  document.getElementById('import-result').style.display='none';
+}
+// Drag and drop
+var dz=document.getElementById('dropZone');
+if(dz){
+  dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
+  dz.addEventListener('drop',function(e){
+    e.preventDefault(); dz.classList.remove('over');
+    var f=e.dataTransfer.files[0];
+    if(f&&f.name.endsWith('.csv')){
+      importFile=f;
+      document.getElementById('dz-file-name').textContent='📄 '+f.name;
+      document.getElementById('dz-file-name').style.display='block';
+      document.getElementById('importBtn').disabled=false;
+    } else { showToast('Please drop a .csv file','error'); }
+  });
+}
+function doImport(){
+  if(!importFile){ showToast('No file selected','warn'); return; }
+  var fd=new FormData();
+  fd.append('csv_file',importFile);
+  fd.append('term',TERM);
+  fd.append('year',YEAR);
+  var btn=document.getElementById('importBtn');
+  btn.textContent='⏳ Importing…'; btn.disabled=true;
+  fetch('/school/scores/csv-import',{method:'POST',body:fd})
+  .then(r=>r.json()).then(function(d){
+    btn.disabled=false; btn.textContent='📥 Import Scores';
+    var box=document.getElementById('import-result');
+    box.style.display='block';
+    if(d.status==='ok'){
+      var html='<div style="color:#1B5E20;font-weight:600">✅ Import complete</div>' +
+        '<div>Saved: <strong>'+d.saved+'</strong> scores</div>';
+      if(d.skipped) html+='<div style="color:#E65100">Skipped: '+d.skipped+'</div>';
+      if(d.errors&&d.errors.length){
+        html+='<div style="color:#B71C1C;margin-top:6px;font-weight:600">Errors:</div>';
+        d.errors.forEach(function(e){ html+='<div style="color:#B71C1C;font-size:10.5px">• '+e+'</div>'; });
+      }
+      box.style.background='#F0FBF4'; box.style.border='1px solid #95D5B2';
+      box.innerHTML=html;
+      showToast('✅ Imported '+d.saved+' scores!','success');
+      setTimeout(function(){ location.reload(); },2000);
+    } else {
+      box.style.background='#FFEBEE'; box.style.border='1px solid #FFCDD2';
+      box.innerHTML='<div style="color:#B71C1C;font-weight:600">❌ '+d.message+'</div>';
+    }
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent='📥 Import Scores';
+    showToast('❌ Upload error: '+e.message,'error');
+  });
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+var toastTimer;
+function showToast(msg, type, duration){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast '+(type||'success');
+  t.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.style.display='none';},duration||3000);
+}
+</script>
+{% endblock %}

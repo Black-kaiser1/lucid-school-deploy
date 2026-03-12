@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}📈 Analytics & Performance{% endblock %}
+
+{% block extra_css %}
+<style>
+.an-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.an-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.chart-bar-wrap{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.chart-bar-label{font-size:12px;color:var(--dark);width:140px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-bar-track{flex:1;background:#e8f5e9;border-radius:6px;height:14px;overflow:hidden;position:relative}
+.chart-bar-fill{height:100%;border-radius:6px;transition:width .6s ease}
+.chart-bar-val{font-size:11px;font-weight:700;width:40px;text-align:right;flex-shrink:0}
+.term-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0}
+.pf-row{display:grid;grid-template-columns:140px 60px repeat(4,1fr);gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f4f2;font-size:12.5px}
+.pf-row:last-child{border-bottom:none}
+.pf-head{font-weight:700;color:var(--p);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.mini-bar{height:18px;border-radius:4px;transition:width .5s}
+.top-rank{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter bar -->
+<div class="fbar">
+  <form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1">
+    <select name="class_id" onchange="this.form.submit()">
+      <option value="">All Classes</option>
+      {% for cls in classes %}
+      <option value="{{ cls.id }}" {% if class_filter|string==cls.id|string %}selected{% endif %}>{{ cls.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="term" onchange="this.form.submit()">
+      {% for t in [1,2,3] %}
+      <option value="{{ t }}" {% if sel_term==t %}selected{% endif %}>Term {{ t }}</option>
+      {% endfor %}
+    </select>
+    <select name="year" onchange="this.form.submit()">
+      {% for yr in ['2025/2026','2024/2025','2023/2024'] %}
+      <option value="{{ yr }}" {% if year==yr %}selected{% endif %}>{{ yr }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<!-- Class averages overview (always visible) -->
+<div class="card" style="margin-bottom:14px">
+  <div class="card-title">🏫 Class Averages — {{ year }}</div>
+  {% if class_avgs %}
+    {% set max_avg = class_avgs|map(attribute='avg')|max %}
+    {% for cls in class_avgs|sort(attribute='avg', reverse=True) %}
+    <div class="chart-bar-wrap">
+      <span class="chart-bar-label" title="{{ cls.name }}">{{ cls.name }}</span>
+      <div class="chart-bar-track">
+        <div class="chart-bar-fill"
+             style="width:{{ (cls.avg/max_avg*100)|round if max_avg else 0 }}%;
+                    background:{% if cls.avg>=75 %}#2D6A4F{% elif cls.avg>=50 %}#1565C0{% else %}#B71C1C{% endif %}">
+        </div>
+      </div>
+      <span class="chart-bar-val"
+            style="color:{% if cls.avg>=75 %}#2D6A4F{% elif cls.avg>=50 %}#1565C0{% else %}#B71C1C{% endif %}">
+        {{ cls.avg }}
+      </span>
+      <span style="font-size:10.5px;color:var(--muted);width:55px;flex-shrink:0">{{ cls.count }} stu.</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">No scores entered yet for {{ year }}.</div>
+  {% endif %}
+</div>
+
+{% if class_filter %}
+
+<!-- Term comparison + Pass/Fail side by side -->
+<div class="an-grid">
+
+  <!-- Term-by-term subject averages -->
+  <div class="card">
+    <div class="card-title">📊 Term Comparison — {{ year }}</div>
+    <div style="display:flex;gap:14px;margin-bottom:10px;font-size:11.5px">
+      <span><span class="term-dot" style="background:#1B4332"></span>Term 1</span>
+      <span><span class="term-dot" style="background:#1565C0"></span>Term 2</span>
+      <span><span class="term-dot" style="background:#E65100"></span>Term 3</span>
+    </div>
+    {% if term_avgs %}
+    <div style="overflow-x:auto">
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--light)">
+            <th style="text-align:left;padding:6px 8px;border-radius:6px 0 0 6px">Subject</th>
+            <th style="text-align:center;padding:6px 8px;color:#1B4332">T1</th>
+            <th style="text-align:center;padding:6px 8px;color:#1565C0">T2</th>
+            <th style="text-align:center;padding:6px 8px;color:#E65100;border-radius:0 6px 6px 0">T3</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in term_avgs|sort(attribute='name') %}
+        <tr style="border-bottom:1px solid #f0f4f2">
+          <td style="padding:7px 8px;font-weight:500">{{ row.name }}
+            <span style="font-size:10px;color:var(--muted);margin-left:4px">{{ row.code }}</span>
+          </td>
+          {% for t in [1,2,3] %}
+          {% set val = row.get('t'~t) %}
+          <td style="text-align:center;padding:7px 8px">
+            {% if val is not none %}
+            <span style="font-weight:700;color:{% if val>=75 %}#1B5E20{% elif val>=50 %}#1565C0{% else %}#B71C1C{% endif %}">
+              {{ val }}
+            </span>
+            {% else %}
+            <span style="color:#ccc">—</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">Select a class to see term comparison.</div>
+    {% endif %}
+  </div>
+
+  <!-- Pass / Fail breakdown -->
+  <div class="card">
+    <div class="card-title">✅ Pass / Fail Summary — Term {{ sel_term }}, {{ year }}</div>
+    {% if pass_fail %}
+    <!-- Header -->
+    <div class="pf-row pf-head">
+      <span>Class</span>
+      <span style="text-align:center">Total</span>
+      <span style="text-align:center;color:#1B5E20">Full Pass</span>
+      <span style="text-align:center;color:#1565C0">Partial</span>
+      <span style="text-align:center;color:#B71C1C">Failed</span>
+      <span style="text-align:center;color:var(--muted)">Pass%</span>
+    </div>
+    {% for pf in pass_fail %}
+    <div class="pf-row">
+      <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ pf.class }}">{{ pf.class }}</span>
+      <span style="text-align:center;font-weight:600">{{ pf.total }}</span>
+      <span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="flex:1;background:#e8f5e9;border-radius:3px;height:12px;overflow:hidden">
+            <div class="mini-bar" style="background:#22C55E;width:{{ (pf.full_pass/pf.total*100)|round if pf.total else 0 }}%"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#1B5E20;width:22px">{{ pf.full_pass }}</span>
+        </div>
+      </span>
+      <span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="flex:1;background:#E3F2FD;border-radius:3px;height:12px;overflow:hidden">
+            <div class="mini-bar" style="background:#1565C0;width:{{ (pf.partial/pf.total*100)|round if pf.total else 0 }}%"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#1565C0;width:22px">{{ pf.partial }}</span>
+        </div>
+      </span>
+      <span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="flex:1;background:#FFEBEE;border-radius:3px;height:12px;overflow:hidden">
+            <div class="mini-bar" style="background:#B71C1C;width:{{ (pf.failed/pf.total*100)|round if pf.total else 0 }}%"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#B71C1C;width:22px">{{ pf.failed }}</span>
+        </div>
+      </span>
+      <span style="text-align:center">
+        <span style="font-weight:700;font-size:13px;color:{% if pf.pass_rate>=75 %}#1B5E20{% elif pf.pass_rate>=50 %}#1565C0{% else %}#B71C1C{% endif %}">
+          {{ pf.pass_rate }}%
+        </span>
+      </span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--muted)">No score data for this term.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endif %}
+
+<!-- Top Performers -->
+<div class="card">
+  <div class="card-title">
+    🏆 Top Performers — Term {{ sel_term }}, {{ year }}
+    {% if class_filter %}
+    <span class="badge bb" style="margin-left:8px">
+      {% for cls in classes %}{% if cls.id|string == class_filter %}{{ cls.name }}{% endif %}{% endfor %}
+    </span>
+    {% endif %}
+  </div>
+  {% if top_students %}
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr><th>#</th><th>Student</th><th>Class</th><th>Total Score</th><th>Performance</th></tr>
+    </thead>
+    <tbody>
+    {% set max_total = top_students[0].grand_total if top_students else 100 %}
+    {% for s in top_students %}
+    <tr>
+      <td>
+        <div class="top-rank
+          {% if loop.index==1 %}r1{% elif loop.index==2 %}r2{% elif loop.index==3 %}r3{% else %}ro{% endif %}"
+          style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+          {% if loop.index==1 %}background:#FFD700;color:#5a3e00{% elif loop.index==2 %}background:#C0C0C0;color:#333{% elif loop.index==3 %}background:#CD7F32;color:#fff{% else %}background:var(--light);color:var(--muted);border:1px solid #e2e8f0{% endif %}">
+          {{ loop.index }}
+        </div>
+      </td>
+      <td><strong>{{ s.name }}</strong></td>
+      <td><span class="badge bb">{{ s.class_name }}</span></td>
+      <td><strong style="color:var(--p)">{{ "%.0f"|format(s.grand_total) }}</strong>
+          <span style="font-size:10.5px;color:var(--muted)"> / {{ s.subj_count }} subjs</span></td>
+      <td style="min-width:120px">
+        <div class="chart-bar-track" style="height:10px">
+          <div class="chart-bar-fill"
+               style="width:{{ ([s.grand_total/max_total*100,100]|min)|round }}%;background:var(--p)">
+          </div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:24px;color:var(--muted)">No scores for Term {{ sel_term }}, {{ year }}.</div>
+  {% endif %}
+</div>
+
+{% endblock %}
