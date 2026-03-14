@@ -68,6 +68,22 @@ def _simplify_string_agg_expr(expr):
     return expr
 
 
+def _fix_types(d):
+    """Convert PostgreSQL datetime/date/Decimal objects to plain Python types
+    so all existing templates and code work unchanged."""
+    import datetime, decimal
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, (datetime.datetime, datetime.date)):
+            result[k] = v.isoformat()
+        elif isinstance(v, decimal.Decimal):
+            result[k] = float(v)
+        else:
+            result[k] = v
+    return result
+
+
+
 class SmartCursor:
     def __init__(self, raw_cursor, is_pg):
         self._c   = raw_cursor
@@ -92,14 +108,13 @@ class SmartCursor:
         if row is None:
             return None
         if self._pg:
-            return SmartRow(row)          # psycopg2 RealDictRow → SmartRow
-        # sqlite3.Row → SmartRow
+            return SmartRow(_fix_types(dict(row)))
         return SmartRow({k: row[k] for k in row.keys()})
 
     def fetchall(self):
         rows = self._c.fetchall()
         if self._pg:
-            return [SmartRow(r) for r in rows]
+            return [SmartRow(_fix_types(dict(r))) for r in rows]
         return [SmartRow({k: r[k] for k in r.keys()}) for r in rows]
 
     @property
